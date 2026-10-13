@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPS Monitorovanie | Duálne ESP32</title>
+    
+    <!-- Leaflet.js knižnica pre mapy -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-color: #f1f5f9;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --modul1-color: #3b82f6; /* Modrá */
+            --modul2-color: #ef4444; /* Červená */
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin: 0;
+            color: #0f172a;
+        }
+        
+        .header p {
+            color: var(--text-muted);
+            margin-top: 8px;
+        }
+
+        .main-layout {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 24px;
+        }
+
+        @media (max-width: 900px) {
+            .main-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panels {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* Karta modulu */
+        .module-card {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+
+        .module-header {
+            padding: 16px 20px;
+            font-weight: 600;
+            font-size: 18px;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .module1 .module-header { background-color: var(--modul1-color); }
+        .module2 .module-header { background-color: var(--modul2-color); }
+
+        .status-badge {
+            font-size: 12px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            background: rgba(255,255,255,0.2);
+            font-weight: 500;
+        }
+
+        .module-body {
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .data-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .data-item span {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+            font-weight: 500;
+        }
+
+        .data-item strong {
+            font-size: 16px;
+            color: var(--text-main);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .full-width {
+            grid-column: span 2;
+        }
+
+        /* Mapa */
+        .map-container {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            border: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+        }
+
+        #map {
+            width: 100%;
+            height: 600px;
+            border-radius: 8px;
+            background-color: #eaeaea;
+            flex-grow: 1;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="header">
+            <h1>Sledovanie GPS Modulov</h1>
+            <p>Monitorovanie dvoch ESP32 zariadení v reálnom čase</p>
+        </div>
+        
+        <div class="main-layout">
+            
+            <!-- Ľavý panel: Dáta z modulov -->
+            <div class="panels">
+                
+                <!-- Modul 1 -->
+                <div class="module-card module1">
+                    <div class="module-header">
+                        Modul 1 (Modrý)
+                        <span class="status-badge" id="status-1">Čakám...</span>
+                    </div>
+                    <div class="module-body">
+                        <div class="data-item">
+                            <span>Šírka (Lat)</span>
+                            <strong id="lat-1">--.------</strong>
+                        </div>
+                        <div class="data-item">
+                            <span>Dĺžka (Lng)</span>
+                            <strong id="lng-1">--.------</strong>
+                        </div>
+                        <div class="data-item">
+                            <span>Satelity</span>
+                            <strong id="sat-1">-</strong>
+                        </div>
+                        <div class="data-item">
+                            <span>Čas</span>
+                            <strong id="time-1">--:--:--</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modul 2 -->
+                <div class="module-card module2">
+                    <div class="module-header">
+                        Modul 2 (Červený)
+                        <span class="status-badge" id="status-2">Čakám...</span>
+                    </div>
+                    <div class="module-body">
+                        <div class="data-item">
+                            <span>Šírka (Lat)</span>
+                            <strong id="lat-2">--.------</strong>
+                        </div>
+                        <div class="data-item">
+                            <span>Dĺžka (Lng)</span>
+                            <strong id="lng-2">--.------</strong>
+                        </div>
+                        <div class="data-item">
+                            <span>Satelity</span>
+                            <strong id="sat-2">-</strong>
+                        </div>
+                        <div class="data-item">
+                            <span>Čas</span>
+                            <strong id="time-2">--:--:--</strong>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Pravý panel: Mapa -->
+            <div class="map-container">
+                <div id="map"></div>
+            </div>
+
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js";
+        import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-database.js";
+
+        // 1. ZADAJ SVOJE FIREBASE ÚDAJE
+        const firebaseConfig = {
+            apiKey: "TVOJ_API_KEY",
+            authDomain: "tvoj-projekt.firebaseapp.com",
+            databaseURL: "https://tvoj-projekt-default-rtdb.europe-west1.firebasedatabase.app", 
+            projectId: "tvoj-projekt",
+            storageBucket: "tvoj-projekt.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "1:123456789:web:abcdef"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        // 2. INICIALIZÁCIA MAPY (stred na Slovensko/Oravu)
+        const map = L.map('map').setView([49.388, 19.297], 13);
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap'
+        }).addTo(map);
+
+        // Vlastné ikonky pre markery
+        const createIcon = (color) => {
+            return L.divIcon({
+                className: 'custom-div-icon',
+                html: `<div style="background-color:${color}; width:24px; height:24px; border-radius:50%; border:3px solid white; box-shadow: 0 0 5px rgba(0,0,0,0.5);"></div>`,
+                iconSize: [30, 30],
+                iconAnchor: [15, 15]
+            });
+        };
+
+        let marker1 = null;
+        let marker2 = null;
+
+        // Funkcia na prispôsobenie mapy tak, aby bolo vidno oba markery
+        const fitBoundsToMarkers = () => {
+            const bounds = [];
+            if (marker1) bounds.push(marker1.getLatLng());
+            if (marker2) bounds.push(marker2.getLatLng());
+            
+            if (bounds.length > 1) {
+                map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+            } else if (bounds.length === 1) {
+                map.setView(bounds[0], 15);
+            }
+        };
+
+        // 3. SPRACOVANIE DÁT PRE MODUL 1
+        const locRef1 = ref(db, 'gps/modul1');
+        onValue(locRef1, (snapshot) => {
+            const data = snapshot.val();
+            if (data && data.latitude && data.longitude) {
+                document.getElementById('lat-1').innerText = parseFloat(data.latitude).toFixed(6);
+                document.getElementById('lng-1').innerText = parseFloat(data.longitude).toFixed(6);
+                document.getElementById('sat-1').innerText = data.satellites || '-';
+                
+                document.getElementById('status-1').innerText = "Online";
+                document.getElementById('status-1').style.background = "rgba(0, 255, 0, 0.3)";
+
+                if (data.timestamp) {
+                    document.getElementById('time-1').innerText = new Date(data.timestamp * 1000).toLocaleTimeString('sk-SK');
+                } else {
+                    document.getElementById('time-1').innerText = new Date().toLocaleTimeString('sk-SK');
+                }
+
+                const latLng = [data.latitude, data.longitude];
+                if (!marker1) {
+                    marker1 = L.marker(latLng, {icon: createIcon('#3b82f6')}).addTo(map).bindPopup('<b>Modul 1</b>');
+                } else {
+                    marker1.setLatLng(latLng);
+                }
+                fitBoundsToMarkers();
+            }
+        });
+
+        // 4. SPRACOVANIE DÁT PRE MODUL 2
+        const locRef2 = ref(db, 'gps/modul2');
+        onValue(locRef2, (snapshot) => {
+            const data = snapshot.val();
+            if (data && data.latitude && data.longitude) {
+                document.getElementById('lat-2').innerText = parseFloat(data.latitude).toFixed(6);
+                document.getElementById('lng-2').innerText = parseFloat(data.longitude).toFixed(6);
+                document.getElementById('sat-2').innerText = data.satellites || '-';
+                
+                document.getElementById('status-2').innerText = "Online";
+                document.getElementById('status-2').style.background = "rgba(0, 255, 0, 0.3)";
+
+                if (data.timestamp) {
+                    document.getElementById('time-2').innerText = new Date(data.timestamp * 1000).toLocaleTimeString('sk-SK');
+                } else {
+                    document.getElementById('time-2').innerText = new Date().toLocaleTimeString('sk-SK');
+                }
+
+                const latLng = [data.latitude, data.longitude];
+                if (!marker2) {
+                    marker2 = L.marker(latLng, {icon: createIcon('#ef4444')}).addTo(map).bindPopup('<b>Modul 2</b>');
+                } else {
+                    marker2.setLatLng(latLng);
+                }
+                fitBoundsToMarkers();
+            }
+        });
+    </script>
+</body>
+</html>
