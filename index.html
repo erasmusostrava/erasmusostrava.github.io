@@ -3,337 +3,559 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GPS Monitorovanie | Duálne ESP32</title>
+    <title>GPS Telemetria | ESP32</title>
     
-    <!-- Leaflet.js knižnica pre mapy -->
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     <style>
-        :root {
-            --bg-color: #f1f5f9;
-            --card-bg: #ffffff;
-            --text-main: #1e293b;
-            --text-muted: #64748b;
-            --border-color: #e2e8f0;
-            --modul1-color: #3b82f6; /* Modrá */
-            --modul2-color: #ef4444; /* Červená */
-        }
-
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-main);
-            margin: 0;
-            padding: 20px;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        .header {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-
-        .header h1 {
-            font-size: 28px;
-            font-weight: 700;
-            margin: 0;
-            color: #0f172a;
-        }
-        
-        .header p {
-            color: var(--text-muted);
-            margin-top: 8px;
-        }
-
-        .main-layout {
-            display: grid;
-            grid-template-columns: 350px 1fr;
-            gap: 24px;
-        }
-
-        @media (max-width: 900px) {
-            .main-layout {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        .panels {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        /* Karta modulu */
-        .module-card {
-            background-color: var(--card-bg);
-            border-radius: 12px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-            overflow: hidden;
-            border: 1px solid var(--border-color);
-        }
-
-        .module-header {
-            padding: 16px 20px;
-            font-weight: 600;
-            font-size: 18px;
-            color: white;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .module1 .module-header { background-color: var(--modul1-color); }
-        .module2 .module-header { background-color: var(--modul2-color); }
-
-        .status-badge {
-            font-size: 12px;
-            padding: 4px 10px;
-            border-radius: 20px;
-            background: rgba(255,255,255,0.2);
-            font-weight: 500;
-        }
-
-        .module-body {
-            padding: 20px;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
-        }
-
-        .data-item {
+        body { 
+            background-color: #f1f5f9; 
+            min-height: 100vh;
             display: flex;
             flex-direction: column;
         }
 
-        .data-item span {
-            font-size: 12px;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 4px;
-            font-weight: 500;
+        .main-wrapper {
+            flex: 1;
+            padding: 0 1.5rem 1.5rem 1.5rem;
         }
 
-        .data-item strong {
-            font-size: 16px;
-            color: var(--text-main);
-            font-variant-numeric: tabular-nums;
-        }
-
-        .full-width {
-            grid-column: span 2;
-        }
-
-        /* Mapa */
-        .map-container {
-            background-color: var(--card-bg);
-            border-radius: 12px;
-            padding: 12px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-            border: 1px solid var(--border-color);
+        .map-card {
+            height: 100%;
+            min-height: 620px;
             display: flex;
             flex-direction: column;
+            position: relative;
         }
 
-        #map {
+        #map-container {
+            position: relative;
+            flex: 1;
             width: 100%;
-            height: 600px;
-            border-radius: 8px;
-            background-color: #eaeaea;
-            flex-grow: 1;
+            min-height: 560px;
+            display: flex;
+            flex-direction: column;
         }
 
+        #map { 
+            flex: 1;
+            width: 100%; 
+            height: 100%;
+            border-radius: 0 0 0.5rem 0.5rem;
+        }
+
+        /* Fullscreen kontajner */
+        #map-container:fullscreen {
+            height: 100vh !important;
+            width: 100vw !important;
+            border-radius: 0 !important;
+            padding: 0 !important;
+            background-color: #000;
+        }
+        #map-container:-webkit-full-screen {
+            height: 100vh !important;
+            width: 100vw !important;
+            border-radius: 0 !important;
+            padding: 0 !important;
+            background-color: #000;
+        }
+
+        /* Plávajúci ovládací panel nad mapou */
+        .map-floating-controls {
+            position: absolute;
+            top: 14px;
+            right: 14px;
+            z-index: 1000;
+            display: flex;
+            gap: 6px;
+            background: rgba(255, 255, 255, 0.94);
+            backdrop-filter: blur(4px);
+            padding: 6px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+        }
+
+        .module-card-1 { border-top: 5px solid #0d6efd; }
+        .module-card-2 { border-top: 5px solid #dc3545; }
+        .data-label { font-size: 0.72rem; color: #64748b; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; }
+        .data-value { font-size: 1.15rem; font-weight: 700; font-family: monospace; }
+        .data-value-small { font-size: 0.92rem; font-weight: 600; font-family: monospace; }
+        
+        .stat-badge {
+            background-color: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .stat-badge i { font-size: 1.4rem; }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <div class="header">
-            <h1>Sledovanie GPS Modulov</h1>
-            <p>Monitorovanie dvoch ESP32 zariadení v reálnom čase</p>
+    <nav class="navbar navbar-dark bg-dark mb-3 shadow-sm">
+        <div class="container-fluid px-4">
+            <span class="navbar-brand mb-0 h1">
+                <i class="bi bi-geo-alt-fill text-warning me-2"></i> ESP32 GPS Tracker
+            </span>
         </div>
-        
-        <div class="main-layout">
-            
-            <!-- Ľavý panel: Dáta z modulov -->
-            <div class="panels">
+    </nav>
+
+    <div class="main-wrapper">
+        <div class="row g-3 h-100">
+            <!-- ĽAVÁ STRANA: OVLÁDACIE PANELY -->
+            <div class="col-xl-5 col-lg-6 d-flex flex-column gap-3">
                 
-                <!-- Modul 1 -->
-                <div class="module-card module1">
-                    <div class="module-header">
-                        Modul 1 (Modrý)
-                        <span class="status-badge" id="status-1">Čakám...</span>
+                <!-- Karta so vzdialenosťou -->
+                <div class="stat-badge shadow-sm">
+                    <i class="bi bi-arrows-expand text-primary"></i>
+                    <div>
+                        <div class="data-label">Vzájomná vzdialenosť medzi modulmi</div>
+                        <div class="fw-bold fs-5 text-dark" id="distance-between">-- m</div>
                     </div>
-                    <div class="module-body">
-                        <div class="data-item">
-                            <span>Šírka (Lat)</span>
-                            <strong id="lat-1">--.------</strong>
-                        </div>
-                        <div class="data-item">
-                            <span>Dĺžka (Lng)</span>
-                            <strong id="lng-1">--.------</strong>
-                        </div>
-                        <div class="data-item">
-                            <span>Satelity</span>
-                            <strong id="sat-1">-</strong>
-                        </div>
-                        <div class="data-item">
-                            <span>Čas</span>
-                            <strong id="time-1">--:--:--</strong>
+                </div>
+
+                <!-- Modul 1 Panel (Modrý) -->
+                <div class="card shadow-sm module-card-1">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">
+                        <span class="fw-bold fs-6 text-primary"><i class="bi bi-cpu me-1"></i> Modul 1</span>
+                        <span class="badge bg-secondary" id="status-1">Offline</span>
+                    </div>
+                    <div class="card-body py-3">
+                        <div class="row text-center g-2">
+                            <div class="col-4">
+                                <div class="data-label">Šírka (LAT)</div>
+                                <div class="data-value text-primary" id="lat-1">--.------</div>
+                            </div>
+                            <div class="col-4">
+                                <div class="data-label">Dĺžka (LNG)</div>
+                                <div class="data-value text-primary" id="lng-1">--.------</div>
+                            </div>
+                            <div class="col-4">
+                                <div class="data-label"><i class="bi bi-speedometer2"></i> Rýchlosť</div>
+                                <div class="data-value text-dark" id="spd-1">-- km/h</div>
+                            </div>
+                            <div class="col-4">
+                                <div class="data-label"><i class="bi bi-clouds"></i> Výška</div>
+                                <div class="data-value-small text-dark" id="alt-1">-- m</div>
+                            </div>
+                            <div class="col-4">
+                                <div class="data-label text-primary"><i class="bi bi-speedometer"></i> Max. Rýchlosť</div>
+                                <div class="data-value-small text-primary fw-bold" id="max-spd-1">0.0 km/h</div>
+                            </div>
+                            <div class="col-4">
+                                <div class="data-label"><i class="bi bi-fingerprint"></i> Device ID</div>
+                                <div class="data-value-small text-muted" id="dev-1">--</div>
+                            </div>
+                            <div class="col-12 mt-1">
+                                <div class="data-label text-start ms-1 mb-1"><i class="bi bi-clock"></i> Posledný ping: <span class="text-dark font-monospace" id="time-1">--:--:--</span></div>
+                            </div>
+                            <div class="col-12 mt-1">
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <button id="center-btn-1" class="btn btn-outline-primary btn-sm w-100 disabled">
+                                            <i class="bi bi-crosshair"></i> Vycentrovať
+                                        </button>
+                                    </div>
+                                    <div class="col-6">
+                                        <a href="#" id="nav-btn-1" target="_blank" class="btn btn-primary btn-sm w-100 disabled">
+                                            <i class="bi bi-geo-alt"></i> Navigovať (Google Maps)
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Modul 2 -->
-                <div class="module-card module2">
-                    <div class="module-header">
-                        Modul 2 (Červený)
-                        <span class="status-badge" id="status-2">Čakám...</span>
+                <!-- Modul 2 Panel (Červený) -->
+                <div class="card shadow-sm module-card-2">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">
+                        <span class="fw-bold fs-6 text-danger"><i class="bi bi-cpu me-1"></i> Modul 2</span>
+                        <span class="badge bg-secondary" id="status-2">Offline</span>
                     </div>
-                    <div class="module-body">
-                        <div class="data-item">
-                            <span>Šírka (Lat)</span>
-                            <strong id="lat-2">--.------</strong>
-                        </div>
-                        <div class="data-item">
-                            <span>Dĺžka (Lng)</span>
-                            <strong id="lng-2">--.------</strong>
-                        </div>
-                        <div class="data-item">
-                            <span>Satelity</span>
-                            <strong id="sat-2">-</strong>
-                        </div>
-                        <div class="data-item">
-                            <span>Čas</span>
-                            <strong id="time-2">--:--:--</strong>
+                    <div class="card-body py-3">
+                        <div class="row text-center g-2">
+                            <div class="col-4">
+                                <div class="data-label">Šírka (LAT)</div>
+                                <div class="data-value text-danger" id="lat-2">--.------</div>
+                            </div>
+                            <div class="col-4">
+                                <div class="data-label">Dĺžka (LNG)</div>
+                                <div class="data-value text-danger" id="lng-2">--.------</div>
+                            </div>
+                            <div class="col-4">
+                                <div class="data-label"><i class="bi bi-speedometer2"></i> Rýchlosť</div>
+                                <div class="data-value text-dark" id="spd-2">-- km/h</div>
+                            </div>
+                            <div class="col-4">
+                                <div class="data-label"><i class="bi bi-clouds"></i> Výška</div>
+                                <div class="data-value-small text-dark" id="alt-2">-- m</div>
+                            </div>
+                            <div class="col-4">
+                                <div class="data-label text-danger"><i class="bi bi-speedometer"></i> Max. Rýchlosť</div>
+                                <div class="data-value-small text-danger fw-bold" id="max-spd-2">0.0 km/h</div>
+                            </div>
+                            <div class="col-4">
+                                <div class="data-label"><i class="bi bi-fingerprint"></i> Device ID</div>
+                                <div class="data-value-small text-muted" id="dev-2">--</div>
+                            </div>
+                            <div class="col-12 mt-1">
+                                <div class="data-label text-start ms-1 mb-1"><i class="bi bi-clock"></i> Posledný ping: <span class="text-dark font-monospace" id="time-2">--:--:--</span></div>
+                            </div>
+                            <div class="col-12 mt-1">
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <button id="center-btn-2" class="btn btn-outline-danger btn-sm w-100 disabled">
+                                            <i class="bi bi-crosshair"></i> Vycentrovať
+                                        </button>
+                                    </div>
+                                    <div class="col-6">
+                                        <a href="#" id="nav-btn-2" target="_blank" class="btn btn-danger btn-sm w-100 disabled">
+                                            <i class="bi bi-geo-alt"></i> Navigovať (Google Maps)
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
             </div>
 
-            <!-- Pravý panel: Mapa -->
-            <div class="map-container">
-                <div id="map"></div>
-            </div>
+            <!-- PRAVÁ STRANA: MAPA -->
+            <div class="col-xl-7 col-lg-6">
+                <div class="card shadow-sm map-card">
+                    <div class="card-header bg-white py-2">
+                        <span class="fw-bold"><i class="bi bi-map me-1"></i> Mapa</span>
+                    </div>
+                    
+                    <div id="map-container">
+                        <div class="map-floating-controls">
+                            <button id="float-center-1" class="btn btn-sm btn-outline-primary fw-semibold disabled" title="Vycentrovať Modul 1">
+                                <i class="bi bi-crosshair"></i> M1
+                            </button>
+                            <button id="float-center-2" class="btn btn-sm btn-outline-danger fw-semibold disabled" title="Vycentrovať Modul 2">
+                                <i class="bi bi-crosshair"></i> M2
+                            </button>
+                            <div class="vr my-1"></div>
+                            <button id="toggle-layer-btn" class="btn btn-sm btn-outline-secondary" title="Zmeniť štýl mapy (Satelit / Normálna)">
+                                <i class="bi bi-layers"></i> <span id="layer-btn-text">Satelit</span>
+                            </button>
+                            <button id="clear-tracks-btn" class="btn btn-sm btn-outline-warning text-dark" title="Zmazať históriu trás">
+                                <i class="bi bi-eraser"></i> <span class="d-none d-md-inline">Zmazať trasy</span>
+                            </button>
+                            <div class="vr my-1"></div>
+                            <button id="fullscreen-btn" class="btn btn-sm btn-dark" title="Režim celej obrazovky">
+                                <i class="bi bi-fullscreen" id="fullscreen-icon"></i>
+                            </button>
+                        </div>
 
+                        <div id="map"></div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
+    <!-- MODAL PRE POTVRDENIE VYMAZANIA TRÁS -->
+    <div class="modal fade" id="confirmClearModal" tabindex="-1" aria-labelledby="confirmClearModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="confirmClearModalLabel"><i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>Potvrdenie zmazania</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Zavrieť"></button>
+                </div>
+                <div class="modal-body">
+                    Naozaj chceš vymazať celú doterajšiu históriu trás pre oba moduly z mapy?
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Zrušiť</button>
+                    <button type="button" id="modal-confirm-btn" class="btn btn-danger btn-sm">Áno, vymazať trasy</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    
+
+    <!-- FIREBASE SDK (Firestore modulárny zápis) -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js";
-        import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-database.js";
+        import { getFirestore, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js";
 
-        // 1. ZADAJ SVOJE FIREBASE ÚDAJE
+        // DOPLŇ SVOJE FIREBASE ÚDAJE
         const firebaseConfig = {
-            apiKey: "TVOJ_API_KEY",
-            authDomain: "tvoj-projekt.firebaseapp.com",
-            databaseURL: "https://tvoj-projekt-default-rtdb.europe-west1.firebasedatabase.app", 
-            projectId: "tvoj-projekt",
-            storageBucket: "tvoj-projekt.appspot.com",
-            messagingSenderId: "123456789",
-            appId: "1:123456789:web:abcdef"
-        };
+              apiKey: "AIzaSyBDx9e9GHS981X7dYj0_7eFj30BCZ5GBG8",
+                  authDomain: "erasmusostrava-4bfc6.firebaseapp.com",
+                  projectId: "erasmusostrava-4bfc6",
+                  storageBucket: "erasmusostrava-4bfc6.firebasestorage.app",
+                  messagingSenderId: "387269362668",
+                  appId: "1:387269362668:web:1771a48c23db5128ef36c9"
+                };
 
         const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
+        const db = getFirestore(app);
 
-        // 2. INICIALIZÁCIA MAPY (stred na Slovensko/Oravu)
-        const map = L.map('map').setView([49.388, 19.297], 13);
-        
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        // Počúvanie Modul 1
+        onSnapshot(doc(db, "gps_tracker", "modul1"), (docSnap) => {
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                window.handleIncomingData(1, data);
+            }
+        });
+
+        // Počúvanie Modul 2
+        onSnapshot(doc(db, "gps_tracker", "modul2"), (docSnap) => {
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                window.handleIncomingData(2, data);
+            }
+        });
+    </script>
+
+    <script>
+        // Inicializácia mapy (scroll zoom vypnutý)
+        const map = L.map('map', {
+            scrollWheelZoom: true
+        }).setView([49.820923, 18.262524], 14);
+
+        const streetLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
             attribution: '&copy; OpenStreetMap'
         }).addTo(map);
 
-        // Vlastné ikonky pre markery
-        const createIcon = (color) => {
-            return L.divIcon({
-                className: 'custom-div-icon',
-                html: `<div style="background-color:${color}; width:24px; height:24px; border-radius:50%; border:3px solid white; box-shadow: 0 0 5px rgba(0,0,0,0.5);"></div>`,
-                iconSize: [30, 30],
-                iconAnchor: [15, 15]
-            });
-        };
+        const satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            maxZoom: 19,
+            attribution: '&copy; Esri World Imagery'
+        });
+
+        let currentLayer = 'street';
+        const layerBtnText = document.getElementById('layer-btn-text');
+
+        function toggleMapLayer() {
+            if (currentLayer === 'street') {
+                map.removeLayer(streetLayer);
+                satLayer.addTo(map);
+                currentLayer = 'sat';
+                layerBtnText.innerText = 'Normálna';
+            } else {
+                map.removeLayer(satLayer);
+                streetLayer.addTo(map);
+                currentLayer = 'street';
+                layerBtnText.innerText = 'Satelit';
+            }
+        }
+
+        document.getElementById('toggle-layer-btn').addEventListener('click', toggleMapLayer);
+
+        // Fullscreen
+        const mapContainer = document.getElementById('map-container');
+        const fullscreenBtn = document.getElementById('fullscreen-btn');
+        const fullscreenIcon = document.getElementById('fullscreen-icon');
+
+        fullscreenBtn.addEventListener('click', () => {
+            if (!document.fullscreenElement) {
+                if (mapContainer.requestFullscreen) {
+                    mapContainer.requestFullscreen();
+                } else if (mapContainer.webkitRequestFullscreen) {
+                    mapContainer.webkitRequestFullscreen();
+                }
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        });
+
+        document.addEventListener('fullscreenchange', () => {
+            if (document.fullscreenElement) {
+                fullscreenIcon.className = "bi bi-fullscreen-exit";
+                setTimeout(() => map.invalidateSize(), 200);
+            } else {
+                fullscreenIcon.className = "bi bi-fullscreen";
+                setTimeout(() => map.invalidateSize(), 200);
+            }
+        });
+
+        const blueIcon = new L.Icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+            iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
+        });
+
+        const redIcon = new L.Icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+            iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
+        });
 
         let marker1 = null;
         let marker2 = null;
 
-        // Funkcia na prispôsobenie mapy tak, aby bolo vidno oba markery
-        const fitBoundsToMarkers = () => {
-            const bounds = [];
-            if (marker1) bounds.push(marker1.getLatLng());
-            if (marker2) bounds.push(marker2.getLatLng());
-            
-            if (bounds.length > 1) {
-                map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
-            } else if (bounds.length === 1) {
-                map.setView(bounds[0], 15);
+        const track1 = L.polyline([], { color: '#0d6efd', weight: 4, opacity: 0.7 }).addTo(map);
+        const track2 = L.polyline([], { color: '#dc3545', weight: 4, opacity: 0.7 }).addTo(map);
+
+        // Dialóg na vymazanie trás
+        const modalEl = document.getElementById('confirmClearModal');
+        const clearModal = new bootstrap.Modal(modalEl);
+
+        document.getElementById('clear-tracks-btn').addEventListener('click', () => {
+            if (document.fullscreenElement) {
+                mapContainer.appendChild(modalEl);
+            } else {
+                document.body.appendChild(modalEl);
+            }
+            clearModal.show();
+        });
+
+        document.getElementById('modal-confirm-btn').addEventListener('click', () => {
+            track1.setLatLngs([]);
+            track2.setLatLngs([]);
+            clearModal.hide();
+        });
+
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371e3;
+            const φ1 = lat1 * Math.PI / 180;
+            const φ2 = lat2 * Math.PI / 180;
+            const Δφ = (lat2 - lat1) * Math.PI / 180;
+            const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+            const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                      Math.cos(φ1) * Math.cos(φ2) *
+                      Math.sin(Δλ/2) * Math.sin(Δλ/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+
+        let maxSpeed1 = 0.0;
+        let maxSpeed2 = 0.0;
+        let pos1 = null;
+        let pos2 = null;
+        let lastUpdate = { modul1: 0, modul2: 0 };
+
+        window.handleIncomingData = function(modNum, data) {
+            if (!data || data.latitude === undefined || data.longitude === undefined) return;
+
+            const lat = parseFloat(data.latitude);
+            const lng = parseFloat(data.longitude);
+            const spd = data.speed !== undefined ? parseFloat(data.speed) : 0.0;
+            const alt = data.altitude !== undefined ? parseFloat(data.altitude) : 0.0;
+            const dev = data.device_id || `Modul ${modNum}`;
+
+            lastUpdate[`modul${modNum}`] = Date.now();
+
+            // Status Online
+            const statusEl = document.getElementById(`status-${modNum}`);
+            statusEl.innerText = "Online";
+            statusEl.className = "badge bg-success";
+
+            // Aktualizácia hodnôt v UI
+            document.getElementById(`lat-${modNum}`).innerText = lat.toFixed(6);
+            document.getElementById(`lng-${modNum}`).innerText = lng.toFixed(6);
+            document.getElementById(`spd-${modNum}`).innerText = spd.toFixed(1) + ' km/h';
+            document.getElementById(`alt-${modNum}`).innerText = alt.toFixed(1) + ' m';
+            document.getElementById(`dev-${modNum}`).innerText = dev;
+            document.getElementById(`time-${modNum}`).innerText = data.timestamp ? new Date(data.timestamp * 1000).toLocaleTimeString('sk-SK') : new Date().toLocaleTimeString('sk-SK');
+
+            // Aktivácia tlačidiel
+            const navBtn = document.getElementById(`nav-btn-${modNum}`);
+            navBtn.classList.remove('disabled');
+            navBtn.href = `https://www.google.com/maps?q=${lat},${lng}`;
+
+            document.getElementById(`center-btn-${modNum}`).classList.remove('disabled');
+            document.getElementById(`float-center-${modNum}`).classList.remove('disabled');
+
+            // Max rýchlosť
+            if (modNum === 1) {
+                if (spd > maxSpeed1) {
+                    maxSpeed1 = spd;
+                    document.getElementById('max-spd-1').innerText = maxSpeed1.toFixed(1) + ' km/h';
+                }
+            } else {
+                if (spd > maxSpeed2) {
+                    maxSpeed2 = spd;
+                    document.getElementById('max-spd-2').innerText = maxSpeed2.toFixed(1) + ' km/h';
+                }
+            }
+
+            const latLng = [lat, lng];
+            if (modNum === 1) {
+                pos1 = { lat, lng };
+                track1.addLatLng(latLng);
+                if (!marker1) marker1 = L.marker(latLng, { icon: blueIcon }).addTo(map).bindPopup(`<b>${dev}</b><br>Rýchlosť: ${spd.toFixed(1)} km/h`);
+                else {
+                    marker1.setLatLng(latLng);
+                    marker1.setPopupContent(`<b>${dev}</b><br>Rýchlosť: ${spd.toFixed(1)} km/h<br>Výška: ${alt.toFixed(1)} m`);
+                }
+            } else {
+                pos2 = { lat, lng };
+                track2.addLatLng(latLng);
+                if (!marker2) marker2 = L.marker(latLng, { icon: redIcon }).addTo(map).bindPopup(`<b>${dev}</b><br>Rýchlosť: ${spd.toFixed(1)} km/h`);
+                else {
+                    marker2.setLatLng(latLng);
+                    marker2.setPopupContent(`<b>${dev}</b><br>Rýchlosť: ${spd.toFixed(1)} km/h<br>Výška: ${alt.toFixed(1)} m`);
+                }
+            }
+
+            // Vzájomná vzdialenosť
+            if (pos1 && pos2) {
+                const dist = calculateDistance(pos1.lat, pos1.lng, pos2.lat, pos2.lng);
+                document.getElementById('distance-between').innerText = dist > 1000 ? (dist/1000).toFixed(2) + ' km' : Math.round(dist) + ' m';
             }
         };
 
-        // 3. SPRACOVANIE DÁT PRE MODUL 1
-        const locRef1 = ref(db, 'gps/modul1');
-        onValue(locRef1, (snapshot) => {
-            const data = snapshot.val();
-            if (data && data.latitude && data.longitude) {
-                document.getElementById('lat-1').innerText = parseFloat(data.latitude).toFixed(6);
-                document.getElementById('lng-1').innerText = parseFloat(data.longitude).toFixed(6);
-                document.getElementById('sat-1').innerText = data.satellites || '-';
-                
-                document.getElementById('status-1').innerText = "Online";
-                document.getElementById('status-1').style.background = "rgba(0, 255, 0, 0.3)";
-
-                if (data.timestamp) {
-                    document.getElementById('time-1').innerText = new Date(data.timestamp * 1000).toLocaleTimeString('sk-SK');
-                } else {
-                    document.getElementById('time-1').innerText = new Date().toLocaleTimeString('sk-SK');
-                }
-
-                const latLng = [data.latitude, data.longitude];
-                if (!marker1) {
-                    marker1 = L.marker(latLng, {icon: createIcon('#3b82f6')}).addTo(map).bindPopup('<b>Modul 1</b>');
-                } else {
-                    marker1.setLatLng(latLng);
-                }
-                fitBoundsToMarkers();
+        function centerModule1() {
+            if (pos1) {
+                map.flyTo([pos1.lat, pos1.lng], 18, { animate: true, duration: 1.2 });
+                if (marker1) marker1.openPopup();
             }
-        });
+        }
 
-        // 4. SPRACOVANIE DÁT PRE MODUL 2
-        const locRef2 = ref(db, 'gps/modul2');
-        onValue(locRef2, (snapshot) => {
-            const data = snapshot.val();
-            if (data && data.latitude && data.longitude) {
-                document.getElementById('lat-2').innerText = parseFloat(data.latitude).toFixed(6);
-                document.getElementById('lng-2').innerText = parseFloat(data.longitude).toFixed(6);
-                document.getElementById('sat-2').innerText = data.satellites || '-';
-                
-                document.getElementById('status-2').innerText = "Online";
-                document.getElementById('status-2').style.background = "rgba(0, 255, 0, 0.3)";
-
-                if (data.timestamp) {
-                    document.getElementById('time-2').innerText = new Date(data.timestamp * 1000).toLocaleTimeString('sk-SK');
-                } else {
-                    document.getElementById('time-2').innerText = new Date().toLocaleTimeString('sk-SK');
-                }
-
-                const latLng = [data.latitude, data.longitude];
-                if (!marker2) {
-                    marker2 = L.marker(latLng, {icon: createIcon('#ef4444')}).addTo(map).bindPopup('<b>Modul 2</b>');
-                } else {
-                    marker2.setLatLng(latLng);
-                }
-                fitBoundsToMarkers();
+        function centerModule2() {
+            if (pos2) {
+                map.flyTo([pos2.lat, pos2.lng], 18, { animate: true, duration: 1.2 });
+                if (marker2) marker2.openPopup();
             }
-        });
+        }
+
+        document.getElementById('center-btn-1').addEventListener('click', centerModule1);
+        document.getElementById('float-center-1').addEventListener('click', centerModule1);
+
+        document.getElementById('center-btn-2').addEventListener('click', centerModule2);
+        document.getElementById('float-center-2').addEventListener('click', centerModule2);
+
+        // Watchdog na pozadí (17s limit, kontrola každé 3s)
+        const OFFLINE_TIMEOUT = 3000;
+        setInterval(() => {
+            const now = Date.now();
+            if (lastUpdate.modul1 > 0 && (now - lastUpdate.modul1) > OFFLINE_TIMEOUT) {
+                const statusEl1 = document.getElementById('status-1');
+                if (statusEl1.innerText !== "Offline") {
+                    statusEl1.innerText = "Offline";
+                    statusEl1.className = "badge bg-danger";
+                }
+            }
+            if (lastUpdate.modul2 > 0 && (now - lastUpdate.modul2) > OFFLINE_TIMEOUT) {
+                const statusEl2 = document.getElementById('status-2');
+                if (statusEl2.innerText !== "Offline") {
+                    statusEl2.innerText = "Offline";
+                    statusEl2.className = "badge bg-danger";
+                }
+            }
+        }, 3500);
     </script>
 </body>
 </html>
