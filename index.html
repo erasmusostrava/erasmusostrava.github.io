@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#212529">
-    <title>GPS Telemetria | ESP32</title>
+    <title>GPS ESP32 | Erasmus</title>
 
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -16,7 +16,9 @@
     <style>
         html { -webkit-text-size-adjust: 100%; }
         body { background-color: #f1f5f9; min-height: 100vh; display: flex; flex-direction: column; }
-        .main-wrapper { flex: 1; padding: 0 1.5rem 1.5rem 1.5rem; }
+        .main-wrapper { flex: 1; padding: 0 1.5rem 1.5rem 1.5rem; display: flex; flex-direction: column; }
+        .main-wrapper > .row { flex: 1; }
+
         .map-card { height: 100%; min-height: 620px; display: flex; flex-direction: column; position: relative; }
         #map-container { position: relative; flex: 1; width: 100%; min-height: 560px; display: flex; flex-direction: column; }
         #map { flex: 1; width: 100%; height: 100%; min-height: 300px; border-radius: 0 0 0.5rem 0.5rem; touch-action: pan-x pan-y; }
@@ -36,7 +38,7 @@
         .data-value { font-size: 1.15rem; font-weight: 700; font-family: monospace; overflow-wrap: anywhere; }
         .data-value-small { font-size: 0.92rem; font-weight: 600; font-family: monospace; overflow-wrap: anywhere; }
 
-        .stat-badge { background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 16px; display: flex; align-items: center; gap: 12px; }
+        .stat-badge { background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 16px; display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
         .stat-badge i { font-size: 1.4rem; }
 
         /* Offline stav panelu */
@@ -61,6 +63,28 @@
         .pop-time { color: #64748b; font-size: .78rem; }
 
         #conn-alert { display: none; }
+
+        /* Desktop úprava pre panely, aby presne kopírovali výšku mapy */
+        @media (min-width: 992px) {
+            .sheet-col {
+                height: 100%;
+                display: flex;
+                flex-direction: column;
+            }
+            .sheet-scroll {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                gap: 1rem;
+                overflow-y: auto;
+            }
+            .sheet-scroll > .module-card {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between;
+            }
+        }
 
         /* ---------- MOBIL / TABLET ---------- */
         @media (max-width: 991.98px) {
@@ -89,6 +113,64 @@
             .btn-sm { min-height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: .3rem; }
             .leaflet-touch .leaflet-bar a { width: 36px; height: 36px; line-height: 36px; }
         }
+
+        /* ================================================================
+           SPODNÝ PANEL (iba mobil / tablet) – mapa na celú obrazovku,
+           panely sa vyťahujú zospodu. Desktop ostáva nezmenený.
+        ================================================================ */
+        .sheet-grab { display: none; }
+        .leaflet-bottom { transition: bottom .3s; }
+
+        @media (max-width: 991.98px) {
+            html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+            body { min-height: 0; }
+
+            .navbar { position: fixed; top: 0; left: 0; right: 0; z-index: 1040; margin: 0 !important; padding-top: env(safe-area-inset-top, 0px); }
+            .main-wrapper { padding: 0 !important; }
+
+            /* Mapa = celá obrazovka pod navbarom */
+            .map-col, .map-col .map-card { height: 0 !important; min-height: 0 !important; padding: 0 !important; margin: 0 !important; border: 0 !important; background: none !important; box-shadow: none !important; overflow: visible; }
+            .map-col .card-header { display: none; }
+            #map-container { position: fixed; z-index: 1; left: env(safe-area-inset-left, 0px); right: env(safe-area-inset-right, 0px); top: var(--nav-h, 56px); bottom: 0; width: auto; height: auto; min-height: 0; max-height: none; flex: none; }
+            #map { min-height: 0; border-radius: 0; }
+            #conn-alert { position: fixed; z-index: 1046; top: calc(var(--nav-h, 56px) + 8px); left: 8px; right: 8px; margin: 0 !important; }
+
+            /* Atribúcia a ovládanie mapy nad panelom */
+            .leaflet-bottom { bottom: var(--attr-bottom, 0px); }
+            .stat-badge { display: none; } /* vzdialenosť je už v hlavičke panela */
+            body.pseudo-fs-lock .leaflet-bottom, #map-container:fullscreen .leaflet-bottom, #map-container:-webkit-full-screen .leaflet-bottom { bottom: 0 !important; }
+
+            /* Panel */
+            .sheet-col {
+                position: fixed; left: 0; right: 0; bottom: 0; z-index: 1045;
+                width: auto; max-width: none; margin: 0; padding: 0 !important;
+                height: 150px;
+                display: flex !important; flex-direction: column; gap: 0 !important;
+                background: #f1f5f9; border-radius: 20px 20px 0 0;
+                box-shadow: 0 -8px 30px rgba(15, 23, 42, .28);
+                overflow: hidden; transition: height .32s cubic-bezier(.2, .8, .2, 1);
+                padding-left: env(safe-area-inset-left, 0px) !important; padding-right: env(safe-area-inset-right, 0px) !important;
+            }
+            .sheet-col.dragging { transition: none; }
+
+            .sheet-grab { display: block; flex: none; padding: 4px 12px calc(12px + env(safe-area-inset-bottom, 0px)); touch-action: none; user-select: none; -webkit-user-select: none; }
+            .sheet-handle { height: 26px; display: grid; place-items: center; cursor: grab; }
+            .sheet-handle::before { content: ""; width: 44px; height: 5px; border-radius: 5px; background: #cbd5e1; }
+
+            .mini-row { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: stretch; }
+            .mini { --c: #0d6efd; display: flex; flex-direction: column; gap: 2px; text-align: left; min-width: 0; background: #fff; border: 1px solid #e2e8f0; border-left: 4px solid var(--c); border-radius: 8px; padding: 7px 10px; font: inherit; color: inherit; }
+            .mini.mini-2 { --c: #dc3545; }
+            .mini-top { display: flex; align-items: center; gap: 6px; font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: var(--c); }
+            .mini-dot { width: 8px; height: 8px; border-radius: 50%; background: #94a3b8; flex: none; }
+            .mini.on .mini-dot { background: #22c55e; }
+            .mini-val { font-family: monospace; font-weight: 700; font-size: 1rem; color: #94a3b8; white-space: nowrap; }
+            .mini.on .mini-val { color: #0f172a; }
+            .mini-dist { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 4px; min-width: 66px; }
+            .mini-dist i { font-size: 1rem; line-height: 1; }
+            .mini-dist b { font-size: .92rem; white-space: nowrap; margin-top: 2px; }
+
+            .sheet-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 4px 12px calc(16px + env(safe-area-inset-bottom, 0px)); -webkit-overflow-scrolling: touch; }
+        }
     </style>
 </head>
 <body>
@@ -106,7 +188,7 @@
 
         <div class="row g-3 h-100">
             <!-- MAPA (na mobile hore, na desktope vpravo) -->
-            <div class="col-xl-7 col-lg-6 order-1 order-lg-2">
+            <div class="col-xl-7 col-lg-6 order-1 order-lg-2 map-col">
                 <div class="card shadow-sm map-card">
                     <div class="card-header bg-white py-2">
                         <span class="fw-bold"><i class="bi bi-map me-1"></i> Mapa</span>
@@ -141,10 +223,15 @@
                                         <h5 class="modal-title"><i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>Potvrdenie zmazania</h5>
                                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                     </div>
-                                    <div class="modal-body">Naozaj chceš vymazať celú doterajšiu históriu trás pre oba moduly z mapy?</div>
+                                    <div class="modal-body">
+                                        <p class="mb-3">Naozaj chceš vymazať celú doterajšiu históriu trás pre oba moduly z mapy?</p>
+                                        <p class="mb-1 small fw-bold">Pre potvrdenie napíš slovo zmazať:</p>
+                                        <input type="text" id="delete-confirm-input" class="form-control form-control-sm" placeholder="zmazať">
+                                    </div>
                                     <div class="modal-footer">
                                         <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Zrušiť</button>
-                                        <button type="button" id="modal-confirm-btn" class="btn btn-danger btn-sm">Áno, vymazať trasy</button>
+                                        <!-- Tlačidlo je v základe zablokované (disabled) -->
+                                        <button type="button" id="modal-confirm-btn" class="btn btn-danger btn-sm" disabled>Áno, vymazať trasy</button>
                                     </div>
                                 </div>
                             </div>
@@ -154,10 +241,31 @@
             </div>
 
             <!-- OVLÁDACIE PANELY -->
-            <div class="col-xl-5 col-lg-6 d-flex flex-column gap-3 order-2 order-lg-1">
+            <div class="col-xl-5 col-lg-6 d-flex flex-column gap-3 order-2 order-lg-1 sheet-col" id="sheet" data-snap="peek">
+
+                <!-- Zóna na ťahanie (iba mobil): úchyt + skrátený prehľad -->
+                <div class="sheet-grab" id="sheet-grab">
+                    <div class="sheet-handle" id="sheet-handle" role="button" aria-label="Rozbaliť / zbaliť panel"></div>
+                    <div class="mini-row">
+                        <button type="button" class="mini mini-1" id="mini-1" data-n="1">
+                            <span class="mini-top"><i class="mini-dot"></i> Modul 1</span>
+                            <span class="mini-val">Offline</span>
+                        </button>
+                        <div class="mini-dist">
+                            <i class="bi bi-arrows-collapse-vertical text-info"></i>
+                            <b id="mini-dist">-- m</b>
+                        </div>
+                        <button type="button" class="mini mini-2" id="mini-2" data-n="2">
+                            <span class="mini-top"><i class="mini-dot"></i> Modul 2</span>
+                            <span class="mini-val">Offline</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="sheet-scroll d-flex flex-column gap-3" id="sheet-scroll">
 
                 <div class="stat-badge shadow-sm">
-                    <i class="bi bi-arrows-expand text-primary"></i>
+                    <i class="bi bi-arrows-collapse-vertical text-info"></i>
                     <div>
                         <div class="data-label">Vzájomná vzdialenosť medzi modulmi</div>
                         <div class="fw-bold fs-5 text-dark" id="distance-between">-- m</div>
@@ -271,6 +379,7 @@
                     </div>
                 </div>
 
+                </div><!-- /sheet-scroll -->
             </div>
         </div>
     </div>
@@ -392,6 +501,7 @@
 
             $(`spd-${n}`).innerText = online ? s.spd.toFixed(1) + ' km/h' : '-- km/h';
             $(`sat-${n}`).innerText = online ? s.sats : '--';
+            updateMini(n);
 
             if (s.marker) {
                 s.marker.setIcon(pinIcon(n, s.color, online));
@@ -411,7 +521,9 @@
             const a = state[1], b = state[2];
             if (!a.pos || !b.pos) return;
             const dist = calculateDistance(a.pos.lat, a.pos.lng, b.pos.lat, b.pos.lng);
-            $('distance-between').innerText = dist > 1000 ? (dist / 1000).toFixed(2) + ' km' : Math.round(dist) + ' m';
+            const distTxt = dist > 1000 ? (dist / 1000).toFixed(2) + ' km' : Math.round(dist) + ' m';
+            $('distance-between').innerText = distTxt;
+            $('mini-dist').innerText = distTxt;
             $('distance-note').style.display = (a.online && b.online) ? 'none' : 'block';
         }
 
@@ -440,7 +552,7 @@
             });
             if (!pts.length) return;
             map.invalidateSize();
-            map.fitBounds(L.latLngBounds(pts), { padding: [40, 40], maxZoom: 17, animate: false });
+            map.fitBounds(L.latLngBounds(pts), { paddingTopLeft: [40, 40], paddingBottomRight: [40, 40 + sheetPad()], maxZoom: 17, animate: false });
         }
 
         // Spracovanie dát z Firestore (history = od najstaršieho po najnovší)
@@ -451,7 +563,7 @@
             if (!pts.length) return;
             pts.sort((a, b) => a.ts - b.ts);
 
-            // História trasy sa kreslí VŽDY (online aj offline), okrem toho čo používateľ zmazal
+            // História trasa sa kreslí VŽDY (online aj offline), okrem toho čo používateľ zmazal
             s.track.setLatLngs(pts.filter(p => p.ts > s.clearedAt).map(p => [p.lat, p.lng]));
 
             const latest = pts[pts.length - 1];
@@ -490,25 +602,144 @@
         function centerModule(n, fromPanel) {
             const s = state[n];
             if (!s.pos) return;
-            if (fromPanel && window.innerWidth < 992 && !mapContainer.classList.contains('pseudo-fs')) {
-                const r = mapContainer.getBoundingClientRect();
-                if (r.top < 0 || r.bottom > window.innerHeight) mapContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-            map.flyTo([s.pos.lat, s.pos.lng], Math.max(map.getZoom(), 17), { animate: true, duration: 1.2 });
+            // na mobile po kliknutí z panela panel zbalíme, nech je vidno mapu
+            if (fromPanel && isMobile() && sheetSnap !== 'peek') setSnap('peek');
+            const z = Math.max(map.getZoom(), 17);
+            let target = [s.pos.lat, s.pos.lng];
+            const pad = sheetPad();
+            if (pad) target = map.unproject(map.project(target, z).add([0, pad / 2]), z); // modul do stredu voľnej časti mapy
+            map.flyTo(target, z, { animate: true, duration: 1.2 });
             if (s.marker) s.marker.openPopup();
         }
-        $('center-btn-1').addEventListener('click', () => centerModule(1, true));
-        $('center-btn-2').addEventListener('click', () => centerModule(2, true));
-        $('float-center-1').addEventListener('click', () => centerModule(1, false));
-        $('float-center-2').addEventListener('click', () => centerModule(2, false));
+        $('center-btn-1').addEventListener('click', () => centerModule(1, true));$('center-btn-2').addEventListener('click', () => centerModule(2, true));
+        $('float-center-1').addEventListener('click', () => centerModule(1, false));$('float-center-2').addEventListener('click', () => centerModule(2, false));
 
-        // Zmazanie trás - markery ostávajú, zmaže sa len história po aktuálny bod
+
         const clearModal = new bootstrap.Modal($('confirmClearModal'));
-        $('clear-tracks-btn').addEventListener('click', () => clearModal.show());
+        const deleteInput = $('delete-confirm-input');
+        const confirmBtn = $('modal-confirm-btn');
+            
+        // Otvorenie modalu a resetovanie textového poľa
+        $('clear-tracks-btn').addEventListener('click', () => {
+            { const host = nativeFsEl() || (mapContainer.classList.contains('pseudo-fs') ? mapContainer : document.body); if ($('confirmClearModal').parentElement !== host) host.appendChild($('confirmClearModal')); }
+            deleteInput.value = ''; // Vyčistí pole
+            confirmBtn.disabled = true; // Zablokuje tlačidlo
+            clearModal.show();
+        });
+        
+        // Sledovanie textu v poli - odblokuje tlačidlo len ak sa zhoduje slovo
+        deleteInput.addEventListener('input', (e) => {
+            // Kontroluje slovo (ignoruje veľké/malé písmená a medzery)
+            if (e.target.value.trim().toUpperCase() === 'ZMAZAŤ') {
+                confirmBtn.disabled = false;
+            } else {
+                confirmBtn.disabled = true;
+            }
+        });
+        
+        // Samotné zmazanie
         $('modal-confirm-btn').addEventListener('click', () => {
             [1, 2].forEach(n => { state[n].clearedAt = state[n].lastTs; state[n].track.setLatLngs([]); });
             clearModal.hide();
         });
+
+
+        // ============ SPODNÝ PANEL (mobil) ============
+        const rootEl = document.documentElement;
+        const sheet = $('sheet'), sheetGrab =$('sheet-grab');
+        const isMobile = () => window.matchMedia('(max-width: 991.98px)').matches;
+        let sheetSnap = 'peek', visibleTarget = 0;
+
+        function updateMini(n) {
+            const s = state[n], el = $('mini-' + n);
+            if (!el) return;
+            el.classList.toggle('on', !!s.online);
+            el.querySelector('.mini-val').textContent = s.online ? s.spd.toFixed(1) + ' km/h' : 'Offline';
+        }
+        // Koľko px mapy zakrýva panel (0 na desktope a pri fullscreene)
+        function sheetPad() {
+            if (!isMobile() || nativeFsEl() || mapContainer.classList.contains('pseudo-fs')) return 0;
+            return visibleTarget;
+        }
+        function setNavH() {
+            const nav = document.querySelector('.navbar');
+            rootEl.style.setProperty('--nav-h', nav.offsetHeight + 'px');
+        }
+        function snapHeights() {
+            const nav = document.querySelector('.navbar').offsetHeight;
+            const peek = sheetGrab.offsetHeight;
+            const full = Math.min(Math.round(window.innerHeight * 0.88), window.innerHeight - nav - 8);
+            const half = Math.min(Math.max(peek + 150, Math.round(window.innerHeight * 0.5)), full);
+            return { peek, half, full };
+        }
+        function setVisible(px) {
+            visibleTarget = px;
+            rootEl.style.setProperty('--sheet-visible', px + 'px');
+            // atribúcia mapy sa pri takmer plnom paneli schová pod panel
+            rootEl.style.setProperty('--attr-bottom', (px > window.innerHeight * 0.6 ? 0 : px) + 'px');
+        }
+        function applySnap(animate = true) {
+            setNavH();
+            if (!isMobile()) { sheet.style.height = ''; setVisible(0); return; }
+            const h = snapHeights()[sheetSnap];
+            sheet.classList.toggle('dragging', !animate);
+            sheet.style.height = h + 'px';
+            sheet.dataset.snap = sheetSnap;
+            setVisible(h);
+        }
+        function setSnap(name) { sheetSnap = name; applySnap(true); }
+        window.addEventListener('resize', () => applySnap(false));
+        window.addEventListener('orientationchange', () => setTimeout(() => applySnap(false), 300));
+        window.addEventListener('load', () => applySnap(false));
+        if (window.ResizeObserver) new ResizeObserver(() => { if (isMobile() && sheetSnap === 'peek') applySnap(false); }).observe(sheetGrab);
+
+        let drag = null;
+        sheetGrab.addEventListener('pointerdown', (e) => {
+            if (!isMobile()) return;
+            drag = { y: e.clientY, h: sheet.offsetHeight, moved: false, lastY: e.clientY, lastT: e.timeStamp, v: 0, id: e.pointerId, onHandle: !!e.target.closest('.sheet-handle') };
+        });
+        sheetGrab.addEventListener('pointermove', (e) => {
+            if (!drag || e.pointerId !== drag.id) return;
+            const dy = drag.y - e.clientY;
+            if (!drag.moved) {
+                if (Math.abs(dy) < 6) return;
+                drag.moved = true;
+                try { sheetGrab.setPointerCapture(e.pointerId); } catch (err) {}
+                sheet.classList.add('dragging');
+            }
+            const s = snapHeights();
+            const h = Math.min(s.full, Math.max(s.peek, drag.h + dy));
+            sheet.style.height = h + 'px';
+            setVisible(h);
+            const dt = e.timeStamp - drag.lastT;
+            if (dt > 0) drag.v = (drag.lastY - e.clientY) / dt; // px/ms, kladné = hore
+            drag.lastY = e.clientY; drag.lastT = e.timeStamp;
+        });
+        function endDrag(e) {
+            if (!drag || e.pointerId !== drag.id) return;
+            const d = drag; drag = null;
+            sheet.classList.remove('dragging');
+            const s = snapHeights();
+            if (!d.moved) {
+                if (d.onHandle) setSnap(sheetSnap === 'peek' ? 'half' : sheetSnap === 'half' ? 'full' : 'peek');
+                return;
+            }
+            const order = ['peek', 'half', 'full'], cur = sheet.offsetHeight;
+            let target;
+            if (Math.abs(d.v) > 0.45) {
+                const idx = order.indexOf(sheetSnap);
+                target = order[Math.max(0, Math.min(2, idx + (d.v > 0 ? 1 : -1)))];
+            } else {
+                target = order.reduce((best, k) => Math.abs(s[k] - cur) < Math.abs(s[best] - cur) ? k : best, 'peek');
+            }
+            setSnap(target);
+        }
+        sheetGrab.addEventListener('pointerup', endDrag);
+        sheetGrab.addEventListener('pointercancel', endDrag);
+
+        // Ťuk na čip modulu = vycentrovať mapu na modul
+        [1, 2].forEach(n => $('mini-' + n).addEventListener('click', () => centerModule(n, false)));
+        applySnap(false);
 
         // Watchdog - každú sekundu prepočíta online/offline podľa veku posledného pingu
         [1, 2].forEach(n => applyStatus(n, true));
