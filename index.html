@@ -3,9 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="theme-color" content="#212529">
+    <meta name="theme-color" content="#12306b">
     <title>GPS ESP32 | Erasmus</title>
 
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,700;12..96,800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons -->
@@ -14,192 +17,157 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
     <style>
-        html { -webkit-text-size-adjust: 100%; }
-        body { background-color: #f1f5f9; min-height: 100vh; display: flex; flex-direction: column; }
-        .main-wrapper { flex: 1; padding: 0 1.5rem 1.5rem 1.5rem; display: flex; flex-direction: column; }
-        .main-wrapper > .row { flex: 1; }
+        :root { --ink:#0f1f2a; --paper:#eef1ee; --line:#dde3df; --muted:#5f7078; --tile:#f3f6f4; --eu:#12306b; --star:#ffd23f; --m1:#0a8f8a; --m2:#e4572e; --nav-h:56px; }
+        html { -webkit-text-size-adjust:100%; }
+        html, body { height:100%; }
+        body { margin:0; display:flex; flex-direction:column; overflow:hidden; overscroll-behavior:none; font-family:'Bricolage Grotesque','Segoe UI',system-ui,sans-serif; background:var(--paper); color:var(--ink); }
+        :focus-visible { outline:3px solid #7aa2ff; outline-offset:2px; }
+        .btn { border-radius:10px; font-weight:600; }
 
-        .map-card { height: 100%; min-height: 620px; display: flex; flex-direction: column; position: relative; }
-        #map-container { position: relative; flex: 1; width: 100%; min-height: 560px; display: flex; flex-direction: column; }
-        #map { flex: 1; width: 100%; height: 100%; min-height: 300px; border-radius: 0 0 0.5rem 0.5rem; touch-action: pan-x pan-y; }
+        /* Hlavička */
+        .navbar { background:var(--eu); border-bottom:3px solid var(--star); padding:.5rem 0; padding-top:calc(.5rem + env(safe-area-inset-top,0px)); flex:none; position:relative; z-index:1040; }
+        .brand-mark { width:34px; height:34px; border-radius:10px; background:var(--star); color:var(--eu); display:grid; place-items:center; font-size:1.05rem; flex:none; }
+        .brand-text { display:flex; flex-direction:column; line-height:1.1; color:#fff; }
+        .brand-text b { font-weight:800; font-size:1.05rem; }
+        .brand-text small { font-size:.74rem; color:#b9c7ea; margin-top:2px; }
 
-        /* Fullscreen (natívny aj náhradný pre iOS Safari) */
-        #map-container:fullscreen { height: 100vh !important; width: 100vw !important; border-radius: 0 !important; padding: 0 !important; background-color: #000; }
-        #map-container:-webkit-full-screen { height: 100vh !important; width: 100vw !important; border-radius: 0 !important; padding: 0 !important; background-color: #000; }
-        #map-container.pseudo-fs { position: fixed; inset: 0; z-index: 2000; width: 100vw; height: 100vh !important; height: 100dvh !important; min-height: 0; background: #000; }
-        #map-container.pseudo-fs #map, #map-container:fullscreen #map { border-radius: 0; }
-        body.pseudo-fs-lock { overflow: hidden; }
-        #map-container.pseudo-fs .map-floating-controls { top: calc(10px + env(safe-area-inset-top, 0px)); right: calc(10px + env(safe-area-inset-right, 0px)); }
+        /* Rozloženie: mapa na celú plochu, panely plávajú nad ňou */
+        .main-wrapper { flex:1; min-height:0; position:relative; }
+        .layout, .map-col, .map-card, #map-container { position:absolute; inset:0; }
+        #map-container { background:#dfe5e2; }
+        #map { position:absolute; inset:0; touch-action:pan-x pan-y; }
+        #conn-alert { display:none; position:absolute; z-index:1046; top:10px; left:50%; transform:translateX(-50%); width:min(560px,calc(100% - 20px)); margin:0; border:0; border-radius:12px; box-shadow:0 8px 24px -8px rgba(15,31,42,.5); }
 
-        .map-floating-controls { position: absolute; top: 14px; right: 14px; z-index: 1000; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; max-width: calc(100% - 72px); background: rgba(255, 255, 255, 0.94); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); padding: 6px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); border: 1px solid rgba(0, 0, 0, 0.1); }
-        .module-card-1 { border-top: 5px solid #0d6efd; }
-        .module-card-2 { border-top: 5px solid #dc3545; }
-        .data-label { font-size: 0.72rem; color: #64748b; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; }
-        .data-value { font-size: 1.15rem; font-weight: 700; font-family: monospace; overflow-wrap: anywhere; }
-        .data-value-small { font-size: 0.92rem; font-weight: 600; font-family: monospace; overflow-wrap: anywhere; }
+        #map-container:fullscreen, #map-container:-webkit-full-screen { width:100vw; height:100vh; background:#000; }
+        #map-container.pseudo-fs { position:fixed; inset:0; z-index:2000; background:#000; }
+        body.pseudo-fs-lock { overflow:hidden; }
+        #map-container.pseudo-fs .map-floating-controls { top:calc(10px + env(safe-area-inset-top,0px)); right:calc(10px + env(safe-area-inset-right,0px)); }
 
-        .stat-badge { background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 16px; display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
-        .stat-badge i { font-size: 1.4rem; }
+        /* Oprava pozície zoom tlačidiel vo Fullscreene */
+        #map-container:fullscreen .leaflet-left .leaflet-control,
+        #map-container:-webkit-full-screen .leaflet-left .leaflet-control,
+        #map-container.pseudo-fs .leaflet-left .leaflet-control { margin-left:10px; }
 
-        /* Offline stav panelu */
-        .module-card .card-body { transition: opacity .25s; }
-        .module-card.is-offline .live-val { color: #94a3b8 !important; }
+        .map-floating-controls { position:absolute; top:12px; right:12px; z-index:1000; display:flex; flex-wrap:wrap; justify-content:flex-end; gap:6px; max-width:calc(100% - 24px); background:rgba(255,255,255,.95); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); padding:6px; border-radius:14px; box-shadow:0 8px 24px -8px rgba(15,31,42,.45); }
+        .map-floating-controls .btn-outline-secondary { --bs-btn-color:var(--ink); --bs-btn-border-color:var(--line); --bs-btn-hover-bg:var(--tile); --bs-btn-hover-color:var(--ink); --bs-btn-hover-border-color:var(--line); }
+        .map-floating-controls .btn-dark { --bs-btn-bg:var(--eu); --bs-btn-border-color:var(--eu); --bs-btn-hover-bg:#0c224f; --bs-btn-hover-border-color:#0c224f; }
+        #float-center-1 { --m:var(--m1); } #float-center-2 { --m:var(--m2); }
+        #float-center-1, #float-center-2 { --bs-btn-color:var(--m); --bs-btn-border-color:var(--m); --bs-btn-hover-bg:var(--m); --bs-btn-hover-border-color:var(--m); --bs-btn-hover-color:#fff; --bs-btn-active-bg:var(--m); --bs-btn-active-color:#fff; --bs-btn-disabled-color:var(--m); --bs-btn-disabled-border-color:var(--m); }
+        #float-center-1.is-following, #float-center-2.is-following { background-color:var(--m); color:#fff; border-color:var(--m); }
 
-        /* Markery (pin) */
-        .gps-pin { background: none; border: none; }
-        .gps-pin svg { display: block; filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .35)); }
-        .gps-pin .pin-badge { position: absolute; top: -3px; right: -5px; width: 16px; height: 16px; border-radius: 50%; border: 2px solid #fff; display: flex; align-items: center; justify-content: center; color: #fff; line-height: 1; box-shadow: 0 1px 2px rgba(0,0,0,.3); }
-        .gps-pin .pin-badge i { font-size: 8px; line-height: 1; }
-        .gps-pin .pin-badge.on { background: #22c55e; }
-        .gps-pin .pin-badge.on::after { content: ""; position: absolute; inset: -2px; border-radius: 50%; border: 2px solid #22c55e; animation: pin-pulse 1.8s ease-out infinite; }
-        .gps-pin .pin-badge.off { background: #4b5563; }
-        @keyframes pin-pulse { 0% { transform: scale(1); opacity: .8; } 100% { transform: scale(2.3); opacity: 0; } }
-        @media (prefers-reduced-motion: reduce) { .gps-pin .pin-badge.on::after { animation: none; } }
+        /* Panel s modulmi */
+        .sheet-col { position:absolute; z-index:1000; top:12px; bottom:12px; left:12px; width:360px; display:flex; flex-direction:column; pointer-events:none; }
+        .sheet-grab { display:none; }
+        .sheet-scroll { display:flex; flex-direction:column; gap:10px; overflow-y:auto; max-height:100%; padding:2px; pointer-events:none; scrollbar-width:thin; }
+        .sheet-scroll > * { pointer-events:auto; flex:none; }
+        .leaflet-left .leaflet-control { margin-left:384px; }
 
-        .pop { font-size: .85rem; line-height: 1.35; }
-        .pop-status { font-weight: 700; }
-        .pop-status.on { color: #16a34a; }
-        .pop-status.off { color: #6b7280; }
-        .pop-time { color: #64748b; font-size: .78rem; }
+        .stat-badge { display:flex; align-items:center; gap:12px; background:var(--eu); color:#fff; border-radius:16px; padding:10px 16px; box-shadow:0 10px 26px -12px rgba(15,31,42,.6); }
+        .stat-badge i { color:var(--star); font-size:1.5rem; }
+        .data-label { font-size:.76rem; color:#b9c7ea; }
+        #distance-between { display:block; font:600 1.5rem/1.1 'IBM Plex Mono',monospace; letter-spacing:-.03em; }
+        #distance-note { font-size:.72rem; color:#b9c7ea; }
 
-        #conn-alert { display: none; }
+        .module { --m:var(--m1); background:#fff; border-radius:16px; border-left:6px solid var(--m); padding:12px 14px; box-shadow:0 10px 26px -12px rgba(15,31,42,.45); }
+        .module-card-2 { --m:var(--m2); }
+        .mhead { display:flex; justify-content:space-between; align-items:center; }
+        .mname { font-weight:800; color:var(--m); display:flex; align-items:center; gap:6px; }
+        .speed { display:flex; align-items:baseline; justify-content:space-between; gap:8px; margin:6px 0 8px; }
+        .speed b { font:600 1.9rem/1 'IBM Plex Mono',monospace; letter-spacing:-.04em; }
+        .speed small { color:var(--muted); font-size:.78rem; }
+        .kv { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin:0 0 10px; }
+        .kv > div { background:var(--tile); border-radius:10px; padding:6px 10px; min-width:0; }
+        .kv .wide { grid-column:1/-1; }
+        .kv dt { font-size:.72rem; font-weight:500; color:var(--muted); }
+        .kv dd { margin:0; font:600 .88rem 'IBM Plex Mono',monospace; overflow-wrap:anywhere; }
+        .acts { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+        .btn-m, .btn-m-o { --bs-btn-disabled-opacity:.4; }
+        .btn-m { --bs-btn-bg:var(--m); --bs-btn-border-color:var(--m); --bs-btn-color:#fff; --bs-btn-hover-bg:color-mix(in srgb,var(--m) 80%,#000); --bs-btn-hover-border-color:color-mix(in srgb,var(--m) 80%,#000); --bs-btn-hover-color:#fff; --bs-btn-disabled-bg:var(--m); --bs-btn-disabled-border-color:var(--m); --bs-btn-disabled-color:#fff; }
+        .btn-m-o { --bs-btn-bg:#fff; --bs-btn-border-color:var(--m); --bs-btn-color:var(--m); --bs-btn-hover-bg:var(--m); --bs-btn-hover-border-color:var(--m); --bs-btn-hover-color:#fff; --bs-btn-disabled-bg:#fff; --bs-btn-disabled-border-color:var(--m); --bs-btn-disabled-color:var(--m); }
+        .btn-m-o.is-following { background-color:var(--m); color:#fff; border-color:var(--m); box-shadow:0 0 0 3px color-mix(in srgb,var(--m) 30%,transparent); }
+        .module.is-offline .live-val { color:#94a3b8; }
 
-        /* Desktop úprava pre panely, aby presne kopírovali výšku mapy */
-        @media (min-width: 992px) {
-            .sheet-col {
-                height: 100%;
-                display: flex;
-                flex-direction: column;
-            }
-            .sheet-scroll {
-                flex: 1;
-                display: flex;
-                flex-direction: column;
-                gap: 1rem;
-                overflow-y: auto;
-            }
-            .sheet-scroll > .module-card {
-                flex: 1;
-                display: flex;
-                flex-direction: column;
-                justify-content: space-between;
-            }
-        }
+        /* Odznaky Online / Offline (Opravená červená pre Offline) */
+        .badge { font-weight:700; border-radius:999px; padding:.45em .8em; font-size:.74rem; }
+        .badge::before { content:""; display:inline-block; width:7px; height:7px; border-radius:50%; background:currentColor; margin-right:6px; vertical-align:1px; }
+        .badge.bg-success { background:#dcf5e6 !important; color:#13753c; }
+        .badge.bg-success::before { background:#22c55e; box-shadow:0 0 0 3px rgba(34,197,94,.25); }
+        .badge.bg-danger { background:#fee2e2 !important; color:#b91c1c; }
+        .badge.bg-danger::before { background:#ef4444; }
 
-        /* ---------- MOBIL / TABLET ---------- */
-        @media (max-width: 991.98px) {
-            .main-wrapper { padding: 0 .75rem calc(1rem + env(safe-area-inset-bottom, 0px)) .75rem; }
-            .map-card { height: auto; min-height: 0; }
-            #map-container { flex: none; height: 62vh; height: 62dvh; min-height: 360px; max-height: 640px; }
-            #map { min-height: 0; }
-        }
-        @media (max-width: 575.98px) {
-            body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); }
-            .navbar .container-fluid { padding-left: .9rem !important; padding-right: .9rem !important; }
-            .navbar-brand { font-size: 1.05rem; }
-            .main-wrapper { padding-left: .5rem; padding-right: .5rem; }
-            .stat-badge { padding: 8px 12px; }
-            .data-label { font-size: .62rem; letter-spacing: .2px; }
-            .data-value { font-size: .98rem; }
-            .data-value-small { font-size: .84rem; }
-            .card-body { padding: .75rem .6rem !important; }
-            .map-floating-controls { top: 8px; right: 8px; gap: 4px; padding: 4px; max-width: calc(100% - 64px); }
-            .map-floating-controls .vr { display: none; }
-            .map-floating-controls .btn { padding: .35rem .55rem; min-height: 36px; }
-            #map-container { height: 58vh; height: 58dvh; min-height: 320px; }
-        }
-        /* Väčšie tlačidlá pre dotyk */
-        @media (pointer: coarse) {
-            .btn-sm { min-height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: .3rem; }
-            .leaflet-touch .leaflet-bar a { width: 36px; height: 36px; line-height: 36px; }
-        }
+        /* Markery, popupy, Leaflet */
+        .gps-pin { background:none; border:none; }
+        .gps-pin svg { display:block; filter:drop-shadow(0 2px 2px rgba(0,0,0,.35)); }
+        .gps-pin .pin-badge { position:absolute; top:-3px; right:-5px; width:16px; height:16px; border-radius:50%; border:2px solid #fff; display:flex; align-items:center; justify-content:center; color:#fff; line-height:1; box-shadow:0 1px 2px rgba(0,0,0,.3); }
+        .gps-pin .pin-badge i { font-size:8px; line-height:1; }
+        .gps-pin .pin-badge.on { background:#22c55e; }
+        .gps-pin .pin-badge.on::after { content:""; position:absolute; inset:-2px; border-radius:50%; border:2px solid #22c55e; animation:pin-pulse 1.8s ease-out infinite; }
+        .gps-pin .pin-badge.off { background:#4b5563; }
+        @keyframes pin-pulse { 0% { transform:scale(1); opacity:.8; } 100% { transform:scale(2.3); opacity:0; } }
+        @media (prefers-reduced-motion:reduce) { .gps-pin .pin-badge.on::after { animation:none; } }
+        .pop { font-size:.85rem; line-height:1.35; }
+        .pop-status { font-weight:700; } .pop-status.on { color:#16a34a; } .pop-status.off { color:#6b7280; }
+        .pop-time { color:var(--muted); font-size:.78rem; }
+        .leaflet-container { font-family:inherit; }
+        .leaflet-bar { border:0 !important; border-radius:12px; overflow:hidden; box-shadow:0 8px 20px -8px rgba(15,31,42,.5) !important; }
+        .leaflet-popup-content-wrapper { border-radius:14px; }
+        .leaflet-bottom { transition:bottom .3s; }
+        .modal-content { border:0; border-radius:20px; }
+        .modal-title { font-weight:800; }
 
-        /* ================================================================
-           SPODNÝ PANEL (iba mobil / tablet) – mapa na celú obrazovku,
-           panely sa vyťahujú zospodu. Desktop ostáva nezmenený.
-        ================================================================ */
-        .sheet-grab { display: none; }
-        .leaflet-bottom { transition: bottom .3s; }
+        /* ---------- MOBIL / TABLET: mapa na celú obrazovku, spodný panel ---------- */
+        @media (max-width:991.98px) {
+            .leaflet-left .leaflet-control { margin-left:10px; }
+            .map-floating-controls { top:8px; right:8px; gap:4px; padding:4px; }
+            .map-floating-controls .vr { display:none; }
+            .map-floating-controls .btn { padding:.35rem .55rem; min-height:38px; }
+            .stat-badge { display:none; }
+            .leaflet-bottom { bottom:var(--attr-bottom,0px); }
+            body.pseudo-fs-lock .leaflet-bottom, #map-container:fullscreen .leaflet-bottom, #map-container:-webkit-full-screen .leaflet-bottom { bottom:0 !important; }
+            .leaflet-touch .leaflet-bar a { width:38px; height:38px; line-height:38px; }
+            #conn-alert { top:60px; }
 
-        @media (max-width: 991.98px) {
-            html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
-            body { min-height: 0; }
-
-            .navbar { position: fixed; top: 0; left: 0; right: 0; z-index: 1040; margin: 0 !important; padding-top: env(safe-area-inset-top, 0px); }
-            .main-wrapper { padding: 0 !important; }
-
-            /* Mapa = celá obrazovka pod navbarom */
-            .map-col, .map-col .map-card { height: 0 !important; min-height: 0 !important; padding: 0 !important; margin: 0 !important; border: 0 !important; background: none !important; box-shadow: none !important; overflow: visible; }
-            .map-col .card-header { display: none; }
-            #map-container { position: fixed; z-index: 1; left: env(safe-area-inset-left, 0px); right: env(safe-area-inset-right, 0px); top: var(--nav-h, 56px); bottom: 0; width: auto; height: auto; min-height: 0; max-height: none; flex: none; }
-            #map { min-height: 0; border-radius: 0; }
-            #conn-alert { position: fixed; z-index: 1046; top: calc(var(--nav-h, 56px) + 8px); left: 8px; right: 8px; margin: 0 !important; }
-
-            /* Atribúcia a ovládanie mapy nad panelom */
-            .leaflet-bottom { bottom: var(--attr-bottom, 0px); }
-            .stat-badge { display: none; } /* vzdialenosť je už v hlavičke panela */
-            body.pseudo-fs-lock .leaflet-bottom, #map-container:fullscreen .leaflet-bottom, #map-container:-webkit-full-screen .leaflet-bottom { bottom: 0 !important; }
-
-            /* Panel */
-            .sheet-col {
-                position: fixed; left: 0; right: 0; bottom: 0; z-index: 1045;
-                width: auto; max-width: none; margin: 0; padding: 0 !important;
-                height: 150px;
-                display: flex !important; flex-direction: column; gap: 0 !important;
-                background: #f1f5f9; border-radius: 20px 20px 0 0;
-                box-shadow: 0 -8px 30px rgba(15, 23, 42, .28);
-                overflow: hidden; transition: height .32s cubic-bezier(.2, .8, .2, 1);
-                padding-left: env(safe-area-inset-left, 0px) !important; padding-right: env(safe-area-inset-right, 0px) !important;
-            }
-            .sheet-col.dragging { transition: none; }
-
-            .sheet-grab { display: block; flex: none; padding: 4px 12px calc(12px + env(safe-area-inset-bottom, 0px)); touch-action: none; user-select: none; -webkit-user-select: none; }
-            .sheet-handle { height: 26px; display: grid; place-items: center; cursor: grab; }
-            .sheet-handle::before { content: ""; width: 44px; height: 5px; border-radius: 5px; background: #cbd5e1; }
-
-            .mini-row { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: stretch; }
-            .mini { --c: #0d6efd; display: flex; flex-direction: column; gap: 2px; text-align: left; min-width: 0; background: #fff; border: 1px solid #e2e8f0; border-left: 4px solid var(--c); border-radius: 8px; padding: 7px 10px; font: inherit; color: inherit; }
-            .mini.mini-2 { --c: #dc3545; }
-            .mini-top { display: flex; align-items: center; gap: 6px; font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: var(--c); }
-            .mini-dot { width: 8px; height: 8px; border-radius: 50%; background: #94a3b8; flex: none; }
-            .mini.on .mini-dot { background: #22c55e; }
-            .mini-val { font-family: monospace; font-weight: 700; font-size: 1rem; color: #94a3b8; white-space: nowrap; }
-            .mini.on .mini-val { color: #0f172a; }
-            .mini-dist { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 4px; min-width: 66px; }
-            .mini-dist i { font-size: 1rem; line-height: 1; }
-            .mini-dist b { font-size: .92rem; white-space: nowrap; margin-top: 2px; }
-
-            .sheet-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 4px 12px calc(16px + env(safe-area-inset-bottom, 0px)); -webkit-overflow-scrolling: touch; }
+            .sheet-col { position:fixed; left:0; right:0; bottom:0; top:auto; width:auto; height:150px; z-index:1045; pointer-events:auto; background:var(--paper); border-radius:24px 24px 0 0; box-shadow:0 -12px 40px rgba(15,31,42,.32); overflow:hidden; transition:height .32s cubic-bezier(.2,.8,.2,1); padding:0 env(safe-area-inset-right,0px) 0 env(safe-area-inset-left,0px); }
+            .sheet-col.dragging { transition:none; }
+            .sheet-grab { display:block; flex:none; padding:4px 12px calc(12px + env(safe-area-inset-bottom,0px)); touch-action:none; user-select:none; -webkit-user-select:none; }
+            .sheet-handle { height:26px; display:grid; place-items:center; cursor:grab; }
+            .sheet-handle::before { content:""; width:42px; height:5px; border-radius:5px; background:#b4bfbb; }
+            .mini-row { display:grid; grid-template-columns:1fr auto 1fr; gap:8px; align-items:stretch; }
+            .mini { --c:var(--m1); display:flex; flex-direction:column; gap:2px; text-align:left; min-width:0; background:#fff; border:0; border-top:3px solid var(--c); border-radius:14px; padding:8px 12px; font:inherit; color:inherit; box-shadow:0 1px 3px rgba(15,31,42,.12); }
+            .mini.mini-2 { --c:var(--m2); }
+            .mini.is-following { box-shadow:0 0 0 2px var(--c); }
+            .mini-top { display:flex; align-items:center; gap:6px; font-size:.8rem; font-weight:700; color:var(--c); }
+            .mini-dot { width:8px; height:8px; border-radius:50%; background:#ef4444; flex:none; }
+            .mini.on .mini-dot { background:#22c55e; }
+            .mini-val { font:600 1rem 'IBM Plex Mono',monospace; color:#94a3b8; white-space:nowrap; }
+            .mini.on .mini-val { color:var(--ink); }
+            .mini-dist { display:flex; flex-direction:column; align-items:center; justify-content:center; min-width:66px; padding:6px 10px; background:var(--eu); color:#fff; border-radius:14px; }
+            .mini-dist i { color:var(--star); font-size:1rem; line-height:1; }
+            .mini-dist b { font-size:.92rem; white-space:nowrap; margin-top:2px; }
+            .sheet-scroll { flex:1 1 auto; min-height:0; max-height:none; pointer-events:auto; overscroll-behavior:contain; padding:4px 12px calc(16px + env(safe-area-inset-bottom,0px)); -webkit-overflow-scrolling:touch; }
         }
     </style>
 </head>
 <body>
-
-    <nav class="navbar navbar-dark bg-dark mb-3 shadow-sm">
-        <div class="container-fluid px-4">
-            <span class="navbar-brand mb-0 h1">
-                <i class="bi bi-geo-alt-fill text-warning me-2"></i> ESP32 GPS Tracker
+    <nav class="navbar navbar-dark">
+        <div class="container-fluid px-3 px-lg-4">
+            <span class="navbar-brand mb-0 d-flex align-items-center gap-2">
+                <span class="brand-mark"><i class="bi bi-geo-alt-fill"></i></span>
+                <span class="brand-text"><b>ESP32 GPS Tracker</b><small>Erasmus+ projekt, Ostrava</small></span>
             </span>
         </div>
     </nav>
 
     <div class="main-wrapper">
-        <div id="conn-alert" class="alert alert-warning py-2 small mb-3" role="alert"></div>
-
-        <div class="row g-3 h-100">
-            <!-- MAPA (na mobile hore, na desktope vpravo) -->
-            <div class="col-xl-7 col-lg-6 order-1 order-lg-2 map-col">
-                <div class="card shadow-sm map-card">
-                    <div class="card-header bg-white py-2">
-                        <span class="fw-bold"><i class="bi bi-map me-1"></i> Mapa</span>
-                    </div>
-
-                    <div id="map-container">
+        <div id="conn-alert" class="alert alert-warning py-2 small" role="alert"></div>
+        <div class="layout">
+            <div class="map-col"><div class="map-card">
+                <div id="map-container">
                         <div class="map-floating-controls">
-                            <button id="float-center-1" class="btn btn-sm btn-outline-primary fw-semibold disabled" title="Vycentrovať Modul 1">
+                            <button id="float-center-1" class="btn btn-sm btn-outline-primary fw-semibold disabled" title="Vycentrovať a sledovať Modul 1">
                                 <i class="bi bi-crosshair"></i> M1
                             </button>
-                            <button id="float-center-2" class="btn btn-sm btn-outline-danger fw-semibold disabled" title="Vycentrovať Modul 2">
+                            <button id="float-center-2" class="btn btn-sm btn-outline-danger fw-semibold disabled" title="Vycentrovať a sledovať Modul 2">
                                 <i class="bi bi-crosshair"></i> M2
                             </button>
                             <div class="vr my-1"></div>
@@ -230,20 +198,15 @@
                                     </div>
                                     <div class="modal-footer">
                                         <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Zrušiť</button>
-                                        <!-- Tlačidlo je v základe zablokované (disabled) -->
                                         <button type="button" id="modal-confirm-btn" class="btn btn-danger btn-sm" disabled>Áno, vymazať trasy</button>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            </div>
+            </div></div>
 
-            <!-- OVLÁDACIE PANELY -->
-            <div class="col-xl-5 col-lg-6 d-flex flex-column gap-3 order-2 order-lg-1 sheet-col" id="sheet" data-snap="peek">
-
-                <!-- Zóna na ťahanie (iba mobil): úchyt + skrátený prehľad -->
+            <aside class="sheet-col" id="sheet" data-snap="peek">
                 <div class="sheet-grab" id="sheet-grab">
                     <div class="sheet-handle" id="sheet-handle" role="button" aria-label="Rozbaliť / zbaliť panel"></div>
                     <div class="mini-row">
@@ -252,7 +215,8 @@
                             <span class="mini-val">Offline</span>
                         </button>
                         <div class="mini-dist">
-                            <i class="bi bi-arrows-collapse-vertical text-info"></i>
+                            <!-- Opravená žltá ikonka (odstránené text-info) -->
+                            <i class="bi bi-arrows-collapse-vertical"></i>
                             <b id="mini-dist">-- m</b>
                         </div>
                         <button type="button" class="mini mini-2" id="mini-2" data-n="2">
@@ -261,131 +225,49 @@
                         </button>
                     </div>
                 </div>
-
-                <div class="sheet-scroll d-flex flex-column gap-3" id="sheet-scroll">
-
-                <div class="stat-badge shadow-sm">
-                    <i class="bi bi-arrows-collapse-vertical text-info"></i>
+                <div class="sheet-scroll" id="sheet-scroll">
+                <div class="stat-badge">
+                    <i class="bi bi-arrows-collapse-vertical"></i>
                     <div>
-                        <div class="data-label">Vzájomná vzdialenosť medzi modulmi</div>
-                        <div class="fw-bold fs-5 text-dark" id="distance-between">-- m</div>
-                        <div class="small text-muted" id="distance-note" style="display:none">podľa poslednej známej polohy</div>
+                        <div class="data-label">Vzdialenosť medzi modulmi</div>
+                        <b id="distance-between">-- m</b>
+                        <div id="distance-note" style="display:none">podľa poslednej známej polohy</div>
                     </div>
                 </div>
-
-                <!-- Modul 1 Panel -->
-                <div class="card shadow-sm module-card module-card-1 is-offline" id="card-1">
-                    <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">
-                        <span class="fw-bold fs-6 text-primary"><i class="bi bi-cpu me-1"></i> Modul 1</span>
-                        <span class="badge bg-danger" id="status-1">Offline</span>
-                    </div>
-                    <div class="card-body py-3">
-                        <div class="row text-center g-2">
-                            <div class="col-4">
-                                <div class="data-label">Šírka (LAT)</div>
-                                <div class="data-value text-primary live-val" id="lat-1">--.------</div>
-                            </div>
-                            <div class="col-4">
-                                <div class="data-label">Dĺžka (LNG)</div>
-                                <div class="data-value text-primary live-val" id="lng-1">--.------</div>
-                            </div>
-                            <div class="col-4">
-                                <div class="data-label"><i class="bi bi-speedometer2"></i> Rýchlosť</div>
-                                <div class="data-value text-dark live-val" id="spd-1">-- km/h</div>
-                            </div>
-                            <div class="col-4">
-                                <div class="data-label"><i class="bi bi-broadcast"></i> Satelity</div>
-                                <div class="data-value-small text-dark live-val" id="sat-1">--</div>
-                            </div>
-                            <div class="col-4">
-                                <div class="data-label text-primary"><i class="bi bi-speedometer"></i> Max. Rýchlosť</div>
-                                <div class="data-value-small text-primary fw-bold" id="max-spd-1">0.0 km/h</div>
-                            </div>
-                            <div class="col-4">
-                                <div class="data-label"><i class="bi bi-fingerprint"></i> Device ID</div>
-                                <div class="data-value-small text-muted" id="dev-1">--</div>
-                            </div>
-                            <div class="col-12 mt-1">
-                                <div class="data-label text-start ms-1 mb-1"><i class="bi bi-clock"></i> Posledný ping: <span class="text-dark font-monospace" id="time-1">--:--:--</span></div>
-                            </div>
-                            <div class="col-12 mt-1">
-                                <div class="row g-2">
-                                    <div class="col-6">
-                                        <button id="center-btn-1" class="btn btn-outline-primary btn-sm w-100 disabled">
-                                            <i class="bi bi-crosshair"></i> Vycentrovať
-                                        </button>
-                                    </div>
-                                    <div class="col-6">
-                                        <a href="#" id="nav-btn-1" target="_blank" rel="noopener" class="btn btn-primary btn-sm w-100 disabled">
-                                            <i class="bi bi-geo-alt"></i> Navigovať<span class="d-none d-sm-inline">&nbsp;(Google Maps)</span>
-                                        </a>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                <div class="module module-card module-card-1 is-offline" id="card-1">
+                    <div class="mhead"><span class="mname"><i class="bi bi-cpu"></i> Modul 1</span><span class="badge bg-danger" id="status-1">Offline</span></div>
+                    <div class="speed"><b class="live-val" id="spd-1">-- km/h</b><small>max. <span id="max-spd-1">0.0 km/h</span></small></div>
+                    <dl class="kv">
+                        <div><dt>Šírka</dt><dd class="live-val" id="lat-1">--.------</dd></div>
+                        <div><dt>Dĺžka</dt><dd class="live-val" id="lng-1">--.------</dd></div>
+                        <div><dt>Satelity</dt><dd class="live-val" id="sat-1">--</dd></div>
+                        <div><dt>Zariadenie</dt><dd id="dev-1">--</dd></div>
+                        <div class="wide"><dt>Posledný ping</dt><dd id="time-1">--:--:--</dd></div>
+                    </dl>
+                    <div class="acts">
+                        <button id="center-btn-1" class="btn btn-sm btn-m-o disabled"><i class="bi bi-crosshair"></i> Vycentrovať</button>
+                        <a href="#" id="nav-btn-1" target="_blank" rel="noopener" class="btn btn-sm btn-m disabled"><i class="bi bi-geo-alt"></i> Navigovať</a>
                     </div>
                 </div>
-
-                <!-- Modul 2 Panel -->
-                <div class="card shadow-sm module-card module-card-2 is-offline" id="card-2">
-                    <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">
-                        <span class="fw-bold fs-6 text-danger"><i class="bi bi-cpu me-1"></i> Modul 2</span>
-                        <span class="badge bg-danger" id="status-2">Offline</span>
-                    </div>
-                    <div class="card-body py-3">
-                        <div class="row text-center g-2">
-                            <div class="col-4">
-                                <div class="data-label">Šírka (LAT)</div>
-                                <div class="data-value text-danger live-val" id="lat-2">--.------</div>
-                            </div>
-                            <div class="col-4">
-                                <div class="data-label">Dĺžka (LNG)</div>
-                                <div class="data-value text-danger live-val" id="lng-2">--.------</div>
-                            </div>
-                            <div class="col-4">
-                                <div class="data-label"><i class="bi bi-speedometer2"></i> Rýchlosť</div>
-                                <div class="data-value text-dark live-val" id="spd-2">-- km/h</div>
-                            </div>
-                            <div class="col-4">
-                                <div class="data-label"><i class="bi bi-broadcast"></i> Satelity</div>
-                                <div class="data-value-small text-dark live-val" id="sat-2">--</div>
-                            </div>
-                            <div class="col-4">
-                                <div class="data-label text-danger"><i class="bi bi-speedometer"></i> Max. Rýchlosť</div>
-                                <div class="data-value-small text-danger fw-bold" id="max-spd-2">0.0 km/h</div>
-                            </div>
-                            <div class="col-4">
-                                <div class="data-label"><i class="bi bi-fingerprint"></i> Device ID</div>
-                                <div class="data-value-small text-muted" id="dev-2">--</div>
-                            </div>
-                            <div class="col-12 mt-1">
-                                <div class="data-label text-start ms-1 mb-1"><i class="bi bi-clock"></i> Posledný ping: <span class="text-dark font-monospace" id="time-2">--:--:--</span></div>
-                            </div>
-                            <div class="col-12 mt-1">
-                                <div class="row g-2">
-                                    <div class="col-6">
-                                        <button id="center-btn-2" class="btn btn-outline-danger btn-sm w-100 disabled">
-                                            <i class="bi bi-crosshair"></i> Vycentrovať
-                                        </button>
-                                    </div>
-                                    <div class="col-6">
-                                        <a href="#" id="nav-btn-2" target="_blank" rel="noopener" class="btn btn-danger btn-sm w-100 disabled">
-                                            <i class="bi bi-geo-alt"></i> Navigovať<span class="d-none d-sm-inline">&nbsp;(Google Maps)</span>
-                                        </a>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                <div class="module module-card module-card-2 is-offline" id="card-2">
+                    <div class="mhead"><span class="mname"><i class="bi bi-cpu"></i> Modul 2</span><span class="badge bg-danger" id="status-2">Offline</span></div>
+                    <div class="speed"><b class="live-val" id="spd-2">-- km/h</b><small>max. <span id="max-spd-2">0.0 km/h</span></small></div>
+                    <dl class="kv">
+                        <div><dt>Šírka</dt><dd class="live-val" id="lat-2">--.------</dd></div>
+                        <div><dt>Dĺžka</dt><dd class="live-val" id="lng-2">--.------</dd></div>
+                        <div><dt>Satelity</dt><dd class="live-val" id="sat-2">--</dd></div>
+                        <div><dt>Zariadenie</dt><dd id="dev-2">--</dd></div>
+                        <div class="wide"><dt>Posledný ping</dt><dd id="time-2">--:--:--</dd></div>
+                    </dl>
+                    <div class="acts">
+                        <button id="center-btn-2" class="btn btn-sm btn-m-o disabled"><i class="bi bi-crosshair"></i> Vycentrovať</button>
+                        <a href="#" id="nav-btn-2" target="_blank" rel="noopener" class="btn btn-sm btn-m disabled"><i class="bi bi-geo-alt"></i> Navigovať</a>
                     </div>
                 </div>
-
-                </div><!-- /sheet-scroll -->
-            </div>
+                </div>
+            </aside>
         </div>
     </div>
-
-    <!-- MODAL PRE POTVRDENIE VYMAZANIA TRÁS -->
-
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -408,7 +290,6 @@
             else { map.removeLayer(satLayer); streetLayer.addTo(map); currentLayer = 'street'; $('layer-btn-text').innerText = 'Satelit'; }
         });
 
-        // Mapa sa vždy správne prepočíta (rotácia mobilu, zmena veľkosti, adresný riadok...)
         const mapContainer = $('map-container');
         if (window.ResizeObserver) new ResizeObserver(() => map.invalidateSize()).observe(mapContainer);
         window.addEventListener('orientationchange', () => setTimeout(() => map.invalidateSize(), 300));
@@ -440,17 +321,34 @@
         document.addEventListener('webkitfullscreenchange', syncFsUi);
         document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && mapContainer.classList.contains('pseudo-fs')) setPseudoFs(false); });
 
-        // ============ STAV MODULOV ============
-        const OFFLINE_TIMEOUT = 7000; // ms - ak posledný ping (podľa timestampu) je starší, modul je Offline
+        // ============ STAV MODULOV A SLEDOVANIE (AUTO-FOLLOW) ============
+        const OFFLINE_TIMEOUT = 7000;
+        let followedModule = null; // null | 1 | 2
 
         const state = {
-            1: { color: '#0d6efd', marker: null, pos: null, lastTs: 0, online: null, spd: 0, sats: 0, dev: 'Modul 1', max: 0, clearedAt: 0, fitted: false },
-            2: { color: '#dc3545', marker: null, pos: null, lastTs: 0, online: null, spd: 0, sats: 0, dev: 'Modul 2', max: 0, clearedAt: 0, fitted: false }
+            1: { color: '#0a8f8a', marker: null, pos: null, lastTs: 0, online: null, spd: 0, sats: 0, dev: 'Modul 1', max: 0, clearedAt: 0, fitted: false },
+            2: { color: '#e4572e', marker: null, pos: null, lastTs: 0, online: null, spd: 0, sats: 0, dev: 'Modul 2', max: 0, clearedAt: 0, fitted: false }
         };
         state[1].track = L.polyline([], { color: state[1].color, weight: 4, opacity: 0.8 }).addTo(map);
         state[2].track = L.polyline([], { color: state[2].color, weight: 4, opacity: 0.8 }).addTo(map);
 
-        // ---- Marker: farebný = online, šedý = offline (+ odznak) ----
+        function syncFollowUi() {
+            [1, 2].forEach(n => {
+                const active = followedModule === n;
+                $(`center-btn-${n}`).classList.toggle('is-following', active);
+                $(`float-center-${n}`).classList.toggle('is-following', active);
+                $(`mini-${n}`).classList.toggle('is-following', active);
+            });
+        }
+
+        // Ak používateľ pohne mapou ručne, automatické sledovanie sa vypne
+        map.on('dragstart', () => {
+            if (followedModule !== null) {
+                followedModule = null;
+                syncFollowUi();
+            }
+        });
+
         function pinIcon(num, color, online) {
             const fill = online ? color : '#9ca3af';
             const stroke = online ? 'rgba(0,0,0,.35)' : '#6b7280';
@@ -487,7 +385,6 @@
                 <div class="pop-time">${on ? 'Posledný ping' : 'Naposledy videný'}: ${fmtTime(s.lastTs)}</div></div>`;
         }
 
-        // Aplikuje online/offline vzhľad (badge, marker, trasa, panel)
         function applyStatus(n, force) {
             const s = state[n];
             const online = s.lastTs > 0 && (Date.now() - s.lastTs) < OFFLINE_TIMEOUT;
@@ -544,6 +441,15 @@
             return { lat, lng, ts, spd: isFinite(spd) ? spd : 0, sats: d.sats || 0, dev: d.deviceId || null };
         }
 
+        // Vypočíta cieľový bod na mape s ohľadom na ľavý panel (PC) alebo spodný panel (mobil)
+        function getOffsetTarget(latlng, zoom) {
+            const padY = sheetPad();
+            const isFs = !!nativeFsEl() || mapContainer.classList.contains('pseudo-fs');
+            const padX = (!isMobile() && !isFs) ? -190 : 0; // 380px panel / 2 = posun o 190px doprava
+            if (!padX && !padY) return latlng;
+            return map.unproject(map.project(latlng, zoom).add([padX, padY / 2]), zoom);
+        }
+
         function fitAll() {
             const pts = [];
             [1, 2].forEach(n => {
@@ -552,10 +458,15 @@
             });
             if (!pts.length) return;
             map.invalidateSize();
-            map.fitBounds(L.latLngBounds(pts), { paddingTopLeft: [40, 40], paddingBottomRight: [40, 40 + sheetPad()], maxZoom: 17, animate: false });
+            const isFs = !!nativeFsEl() || mapContainer.classList.contains('pseudo-fs');
+            map.fitBounds(L.latLngBounds(pts), {
+                paddingTopLeft: [40 + ((isMobile() || isFs) ? 0 : 380), 40],
+                paddingBottomRight: [40, 40 + sheetPad()],
+                maxZoom: 17,
+                animate: false
+            });
         }
 
-        // Spracovanie dát z Firestore (history = od najstaršieho po najnovší)
         window.updateModule = function (n, history) {
             const s = state[n];
             const pts = [];
@@ -563,17 +474,15 @@
             if (!pts.length) return;
             pts.sort((a, b) => a.ts - b.ts);
 
-            // História trasa sa kreslí VŽDY (online aj offline), okrem toho čo používateľ zmazal
             s.track.setLatLngs(pts.filter(p => p.ts > s.clearedAt).map(p => [p.lat, p.lng]));
 
             const latest = pts[pts.length - 1];
-            s.lastTs = Math.min(latest.ts, Date.now()); // ochrana pred posunom hodín zariadenia
+            s.lastTs = Math.min(latest.ts, Date.now());
             s.pos = { lat: latest.lat, lng: latest.lng };
             s.spd = latest.spd;
             s.sats = latest.sats;
             s.dev = latest.dev || `Modul ${n}`;
 
-            // Marker sa zobrazí vždy - aj keď je modul offline (posledná známa poloha)
             const ll = [latest.lat, latest.lng];
             if (!s.marker) {
                 s.marker = L.marker(ll, { icon: pinIcon(n, s.color, false), title: `Modul ${n}`, riseOnHover: true })
@@ -596,40 +505,50 @@
 
             if (s.online && s.spd > s.max) { s.max = s.spd; $(`max-spd-${n}`).innerText = s.max.toFixed(1) + ' km/h'; }
 
-            if (!s.fitted) { s.fitted = true; fitAll(); }
+            // Ak je zapnuté sledovanie tohto modulu, mapa plynulo prechádza spolu s ním
+            if (followedModule === n) {
+                const z = map.getZoom();
+                map.panTo(getOffsetTarget(ll, z), { animate: true, duration: 0.8 });
+            } else if (!s.fitted && followedModule === null) {
+                s.fitted = true;
+                fitAll();
+            }
         };
 
         function centerModule(n, fromPanel) {
             const s = state[n];
             if (!s.pos) return;
-            // na mobile po kliknutí z panela panel zbalíme, nech je vidno mapu
+
+            // Ak už tento modul sledujeme a klikneme znova, vypneme sledovanie
+            if (followedModule === n) {
+                followedModule = null;
+                syncFollowUi();
+                return;
+            }
+
+            followedModule = n;
+            syncFollowUi();
+
             if (fromPanel && isMobile() && sheetSnap !== 'peek') setSnap('peek');
             const z = Math.max(map.getZoom(), 17);
-            let target = [s.pos.lat, s.pos.lng];
-            const pad = sheetPad();
-            if (pad) target = map.unproject(map.project(target, z).add([0, pad / 2]), z); // modul do stredu voľnej časti mapy
+            const target = getOffsetTarget([s.pos.lat, s.pos.lng], z);
             map.flyTo(target, z, { animate: true, duration: 1.2 });
             if (s.marker) s.marker.openPopup();
         }
         $('center-btn-1').addEventListener('click', () => centerModule(1, true));$('center-btn-2').addEventListener('click', () => centerModule(2, true));
         $('float-center-1').addEventListener('click', () => centerModule(1, false));$('float-center-2').addEventListener('click', () => centerModule(2, false));
 
-
         const clearModal = new bootstrap.Modal($('confirmClearModal'));
         const deleteInput = $('delete-confirm-input');
-        const confirmBtn = $('modal-confirm-btn');
-            
-        // Otvorenie modalu a resetovanie textového poľa
-        $('clear-tracks-btn').addEventListener('click', () => {
-            { const host = nativeFsEl() || (mapContainer.classList.contains('pseudo-fs') ? mapContainer : document.body); if ($('confirmClearModal').parentElement !== host) host.appendChild($('confirmClearModal')); }
-            deleteInput.value = ''; // Vyčistí pole
-            confirmBtn.disabled = true; // Zablokuje tlačidlo
+        const confirmBtn = $('modal-confirm-btn');$('clear-tracks-btn').addEventListener('click', () => {
+            const host = nativeFsEl() || (mapContainer.classList.contains('pseudo-fs') ? mapContainer : document.body);
+            if ($('confirmClearModal').parentElement !== host) host.appendChild($('confirmClearModal'));
+            deleteInput.value = '';
+            confirmBtn.disabled = true;
             clearModal.show();
         });
         
-        // Sledovanie textu v poli - odblokuje tlačidlo len ak sa zhoduje slovo
         deleteInput.addEventListener('input', (e) => {
-            // Kontroluje slovo (ignoruje veľké/malé písmená a medzery)
             if (e.target.value.trim().toUpperCase() === 'ZMAZAŤ') {
                 confirmBtn.disabled = false;
             } else {
@@ -637,12 +556,10 @@
             }
         });
         
-        // Samotné zmazanie
         $('modal-confirm-btn').addEventListener('click', () => {
             [1, 2].forEach(n => { state[n].clearedAt = state[n].lastTs; state[n].track.setLatLngs([]); });
             clearModal.hide();
         });
-
 
         // ============ SPODNÝ PANEL (mobil) ============
         const rootEl = document.documentElement;
@@ -656,7 +573,6 @@
             el.classList.toggle('on', !!s.online);
             el.querySelector('.mini-val').textContent = s.online ? s.spd.toFixed(1) + ' km/h' : 'Offline';
         }
-        // Koľko px mapy zakrýva panel (0 na desktope a pri fullscreene)
         function sheetPad() {
             if (!isMobile() || nativeFsEl() || mapContainer.classList.contains('pseudo-fs')) return 0;
             return visibleTarget;
@@ -675,7 +591,6 @@
         function setVisible(px) {
             visibleTarget = px;
             rootEl.style.setProperty('--sheet-visible', px + 'px');
-            // atribúcia mapy sa pri takmer plnom paneli schová pod panel
             rootEl.style.setProperty('--attr-bottom', (px > window.innerHeight * 0.6 ? 0 : px) + 'px');
         }
         function applySnap(animate = true) {
@@ -712,7 +627,7 @@
             sheet.style.height = h + 'px';
             setVisible(h);
             const dt = e.timeStamp - drag.lastT;
-            if (dt > 0) drag.v = (drag.lastY - e.clientY) / dt; // px/ms, kladné = hore
+            if (dt > 0) drag.v = (drag.lastY - e.clientY) / dt;
             drag.lastY = e.clientY; drag.lastT = e.timeStamp;
         });
         function endDrag(e) {
@@ -737,11 +652,10 @@
         sheetGrab.addEventListener('pointerup', endDrag);
         sheetGrab.addEventListener('pointercancel', endDrag);
 
-        // Ťuk na čip modulu = vycentrovať mapu na modul
         [1, 2].forEach(n => $('mini-' + n).addEventListener('click', () => centerModule(n, false)));
         applySnap(false);
 
-        // Watchdog - každú sekundu prepočíta online/offline podľa veku posledného pingu
+        // Watchdog
         [1, 2].forEach(n => applyStatus(n, true));
         setInterval(() => { [1, 2].forEach(n => applyStatus(n, false)); }, 1000);
         document.addEventListener('visibilitychange', () => { if (!document.hidden) [1, 2].forEach(n => applyStatus(n, false)); });
