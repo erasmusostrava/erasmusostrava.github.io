@@ -87,7 +87,7 @@
         .btn-m-o.is-following { background-color:var(--m); color:#fff; border-color:var(--m); box-shadow:0 0 0 3px color-mix(in srgb,var(--m) 30%,transparent); }
         .module.is-offline .live-val { color:#94a3b8; }
 
-        /* Odznaky Online / Offline (Opravená červená pre Offline) */
+        /* Odznaky Online / Offline */
         .badge { font-weight:700; border-radius:999px; padding:.45em .8em; font-size:.74rem; }
         .badge::before { content:""; display:inline-block; width:7px; height:7px; border-radius:50%; background:currentColor; margin-right:6px; vertical-align:1px; }
         .badge.bg-success { background:#dcf5e6 !important; color:#13753c; }
@@ -215,7 +215,6 @@
                             <span class="mini-val">Offline</span>
                         </button>
                         <div class="mini-dist">
-                            <!-- Opravená žltá ikonka (odstránené text-info) -->
                             <i class="bi bi-arrows-collapse-vertical"></i>
                             <b id="mini-dist">-- m</b>
                         </div>
@@ -322,7 +321,8 @@
         document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && mapContainer.classList.contains('pseudo-fs')) setPseudoFs(false); });
 
         // ============ STAV MODULOV A SLEDOVANIE (AUTO-FOLLOW) ============
-        const OFFLINE_TIMEOUT = 7000;
+        // Upravené: Offline sa zobrazí až po 30 sekundách (30000 ms) od posledného pingu
+        const OFFLINE_TIMEOUT = 30000;
         let followedModule = null; // null | 1 | 2
 
         const state = {
@@ -445,7 +445,7 @@
         function getOffsetTarget(latlng, zoom) {
             const padY = sheetPad();
             const isFs = !!nativeFsEl() || mapContainer.classList.contains('pseudo-fs');
-            const padX = (!isMobile() && !isFs) ? -190 : 0; // 380px panel / 2 = posun o 190px doprava
+            const padX = (!isMobile() && !isFs) ? -190 : 0;
             if (!padX && !padY) return latlng;
             return map.unproject(map.project(latlng, zoom).add([padX, padY / 2]), zoom);
         }
@@ -519,7 +519,6 @@
             const s = state[n];
             if (!s.pos) return;
 
-            // Ak už tento modul sledujeme a klikneme znova, vypneme sledovanie
             if (followedModule === n) {
                 followedModule = null;
                 syncFollowUi();
@@ -655,9 +654,9 @@
         [1, 2].forEach(n => $('mini-' + n).addEventListener('click', () => centerModule(n, false)));
         applySnap(false);
 
-        // Watchdog
+        // Watchdog - kontrola každých 5 sekúnd (5000 ms)
         [1, 2].forEach(n => applyStatus(n, true));
-        setInterval(() => { [1, 2].forEach(n => applyStatus(n, false)); }, 1000);
+        setInterval(() => { [1, 2].forEach(n => applyStatus(n, false)); }, 5000);
         document.addEventListener('visibilitychange', () => { if (!document.hidden) [1, 2].forEach(n => applyStatus(n, false)); });
     </script>
 
